@@ -16,23 +16,43 @@ async def check_sources(app_config, secrets, state, exporter):
         parser = RSSParser(source)
         try:
             entries = parser.parse_feed()
-            new_count = 0
 
+            # Считаем новые посты (еще не в state.json)
+            new_entries = []
             for entry in entries:
                 guid = entry.get("id") or entry.get("link")
                 if not guid:
                     continue
+                if not state.is_processed(guid):
+                    new_entries.append(entry)
 
-                if state.is_processed(guid):
-                    continue
+            total_new = len(new_entries)
+            print(f"📊 Найдено новых постов: {total_new}")
 
+            if total_new == 0:
+                continue
+
+            # Применяем лимит
+            max_to_send = app_config.max_new_posts_per_run
+            entries_to_send = new_entries[:max_to_send]
+            skipped_count = total_new - len(entries_to_send)
+
+            if skipped_count > 0:
+                print(f"⚠️  Пропущено {skipped_count} постов (лимит {max_to_send} за проход)")
+
+            # Отправляем только ограниченное количество
+            sent_count = 0
+            for entry in entries_to_send:
                 success = await exporter.export(entry)
-
                 if success:
+                    guid = entry.get("id") or entry.get("link")
                     state.mark_processed(guid)
-                    new_count += 1
+                    sent_count += 1
 
-            print(f"📊 Найдено и отправлено новых постов: {new_count}")
+            print(f"✅ Отправлено постов: {sent_count}")
+
+            if skipped_count > 0:
+                print(f"💡 Оставшиеся {skipped_count} постов будут отправлены в следующих циклах")
 
         finally:
             parser.close()
@@ -41,13 +61,12 @@ async def check_sources(app_config, secrets, state, exporter):
 async def main():
     print("🚀 Запуск WP Reposter...")
 
-    # Загружаем конфигурацию и секреты раздельно
     app_config, secrets = load_settings()
     print(f"📂 Загружено {len(app_config.sources)} источников")
+    print(f"⚙️  Лимит новых постов за проход: {app_config.max_new_posts_per_run}")
 
     state = StateManager()
 
-    # Передаем секреты явно в экспортер
     exporter = MaxExporter(
         config=app_config.export.max_channel,
         bot_token=secrets.max_bot_token,

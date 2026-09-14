@@ -30,6 +30,7 @@ class SourceConfig(BaseModel):
 
 class AppConfig(BaseModel):
     check_interval: int = 300
+    max_new_posts_per_run: int = 5
     sources: list[SourceConfig]
     export: ExportConfig = Field(default_factory=ExportConfig)
 

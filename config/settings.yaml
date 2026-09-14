@@ -4,6 +4,7 @@ sources:
   - name: "Основной источник"
     url: "https://public-example.com/feed/" # Заглушка, переопределяется через .env при необходимости
     max_pages: 3
+    max_new_posts_per_run: 3
 
 export:
   max_channel:
