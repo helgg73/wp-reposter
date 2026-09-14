@@ -1,0 +1,11 @@
+check_interval: 300
+
+sources:
+  - name: "Основной источник"
+    url: "https://public-example.com/feed/" # Заглушка, переопределяется через .env при необходимости
+    max_pages: 3
+
+export:
+  max_channel:
+    enabled: true
+    template: "📢 {title}\n\n{content}\n\n🔗 {link}"
