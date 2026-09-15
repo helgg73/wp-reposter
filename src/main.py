@@ -2,7 +2,7 @@ import asyncio
 
 from .config import load_settings
 from .exporter import MaxExporter
-from .parser import RSSParser
+from .parser import WordPressParser
 from .state import StateManager
 
 
@@ -11,16 +11,15 @@ async def check_sources(app_config, secrets, state, exporter):
     print("🔄 Проверка источников...")
 
     for source in app_config.sources:
-        print(f"\n📡 Источник: {source.name} ({source.url})")
+        print(f"\n📡 Источник: {source.name} ({source.base_url})")
 
-        parser = RSSParser(source)
+        parser = WordPressParser(source)
         try:
-            entries = parser.parse_feed()
+            entries = parser.fetch_posts()
 
-            # Считаем новые посты (еще не в state.json)
             new_entries = []
             for entry in entries:
-                guid = entry.get("id") or entry.get("link")
+                guid = entry.get("id")
                 if not guid:
                     continue
                 if not state.is_processed(guid):
@@ -32,7 +31,6 @@ async def check_sources(app_config, secrets, state, exporter):
             if total_new == 0:
                 continue
 
-            # Применяем лимит
             max_to_send = app_config.max_new_posts_per_run
             entries_to_send = new_entries[:max_to_send]
             skipped_count = total_new - len(entries_to_send)
@@ -40,13 +38,19 @@ async def check_sources(app_config, secrets, state, exporter):
             if skipped_count > 0:
                 print(f"⚠️  Пропущено {skipped_count} постов (лимит {max_to_send} за проход)")
 
-            # Отправляем только ограниченное количество
             sent_count = 0
             for entry in entries_to_send:
-                success = await exporter.export(entry)
-                if success:
-                    guid = entry.get("id") or entry.get("link")
-                    state.mark_processed(guid)
+                guid = entry["id"]
+                image_url = entry.get("_image_url")
+
+                if image_url:
+                    print(f"   🖼️  Изображение: {image_url.split('/')[-1]}")
+
+                # Получаем message_id вместо bool
+                message_id = await exporter.export(entry, image_url)
+
+                if message_id is not None:
+                    state.mark_processed(guid=guid, message_id=message_id, channel="max")
                     sent_count += 1
 
             print(f"✅ Отправлено постов: {sent_count}")
@@ -59,7 +63,7 @@ async def check_sources(app_config, secrets, state, exporter):
 
 
 async def main():
-    print("🚀 Запуск WP Reposter...")
+    print("🚀 Запуск WP Reposter (REST API)...")
 
     app_config, secrets = load_settings()
     print(f"📂 Загружено {len(app_config.sources)} источников")

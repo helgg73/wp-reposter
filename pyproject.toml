@@ -1,15 +1,14 @@
 [project]
 name = "wp-reposter"
 version = "0.1.0"
-description = "WordPress RSS репостер"
+description = "WordPress REST API репостер"
 requires-python = ">=3.11"
 dependencies = [
-    "feedparser>=6.0.11",
     "httpx>=0.27.0",
-    "maxapi>=1.2.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
     "pyyaml>=6.0.1",
+    "maxapi>=1.2.0",
 ]
 
 [dependency-groups]
@@ -21,7 +20,7 @@ dev = [
 ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]

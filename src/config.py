@@ -45,7 +45,6 @@ class Secrets(BaseSettings):
 
 
 def load_settings() -> tuple[AppConfig, Secrets]:
-    # 1. Загружаем YAML (без секретов)
     yaml_path = Path("config/settings.yaml")
     if yaml_path.exists():
         with open(yaml_path, encoding="utf-8") as f:
@@ -54,13 +53,6 @@ def load_settings() -> tuple[AppConfig, Secrets]:
         raise FileNotFoundError("Не найден config/settings.yaml")
 
     app_config = AppConfig(**yaml_data)
-
-    # 2. Загружаем секреты из .env (вызовет ошибку, если их там нет)
     secrets = Secrets()
-
-    # 3. Если в .env задан RSS_URL, переопределяем URL первого источника
-    # (удобно для локальной разработки без правки YAML)
-    if secrets.rss_url and app_config.sources:
-        app_config.sources[0].url = secrets.rss_url
 
     return app_config, secrets

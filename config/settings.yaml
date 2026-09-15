@@ -1,12 +1,23 @@
 check_interval: 300
+max_new_posts_per_run: 5
 
 sources:
-  - name: "Основной источник"
-    url: "https://public-example.com/feed/" # Заглушка, переопределяется через .env при необходимости
+  - name: "Областная газета"
+    base_url: "https://oblgazeta.ru"
+    api_path: "/wp-json/wp/v2"
+    featured_image_size: "medium"  # thumbnail, medium, large, full
     max_pages: 3
-    max_new_posts_per_run: 3
+    per_page: 20  # Сколько постов запрашивать за один HTTP-запрос (макс. 100)
+    
+    # Фильтрация по ID (оставь пустым [], если не нужно)
+    include_category_ids: []  # Например: [5, 12] (только эти категории)
+    exclude_category_ids: []  # Например: [3] (исключить эту категорию)
+    include_tag_ids: []
+    exclude_tag_ids: []
 
 export:
   max_channel:
     enabled: true
+    disable_link_preview: true
     template: "📢 {title}\n\n{content}\n\n🔗 {link}"
+
