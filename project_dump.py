@@ -21,6 +21,10 @@ LLM видел ожидаемые переменные окружения. Ре�
 allow-list, который проверяется после пользовательских `-x`, но до
 встроенных `EXCLUDE_PATTERNS`.
 
+Переносы строк нормализуются к `\n`: файлы с CRLF (Windows-переносы)
+в дампе выглядят единообразно, без лишних `\r`, которые редакторы
+отображают как пустые строки.
+
 Файлы, которые не удалось прочитать как UTF-8, включаются в дамп
 с заглушками `�`, но скрипт печатает предупреждение в stderr с
 указанием файла и позиции ошибки. Итоговый счётчик таких файлов
@@ -255,6 +259,19 @@ def is_binary(path: Path) -> bool:
             return b"\x00" in f.read(BINARY_SNIFF_BYTES)
     except OSError:
         return True
+
+
+def normalize_newlines(text: str) -> str:
+    """
+    Приводит CRLF и одиночные CR к LF.
+
+    Дамп становится единообразным независимо от исходных переносов:
+    файлы с CRLF (Windows) не дают «фантомных» пустых строк в редакторах
+    и не раздувают объём. Порядок замен важен: сначала ``\\r\\n`` → ``\\n``,
+    потом одиночные ``\\r`` → ``\\n``; иначе ``\\r\\n`` превратится
+    в ``\\n\\n``.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def _matches(rel: str, name: str, pat: str) -> bool:
@@ -546,7 +563,9 @@ def main() -> None:
     included = 0
     encoding_issues = 0
 
-    with open(out_path, "w", encoding="utf-8") as out:
+    # newline="" отключает трансляцию \n в os.linesep при записи:
+    # дамп всегда в LF, независимо от платформы.
+    with open(out_path, "w", encoding="utf-8", newline="") as out:
         if not args.no_toc:
             out.write(build_toc(result.included, result.sizes))
 
@@ -559,14 +578,14 @@ def main() -> None:
                 continue
 
             try:
-                content = raw.decode("utf-8")
+                content = normalize_newlines(raw.decode("utf-8"))
             except UnicodeDecodeError as e:
                 print(
                     f"⚠  {rel}: не UTF-8 ({e.reason} на байте {e.start}). "
                     f"Файл включён с заглушками.",
                     file=sys.stderr,
                 )
-                content = raw.decode("utf-8", errors="replace")
+                content = normalize_newlines(raw.decode("utf-8", errors="replace"))
                 encoding_issues += 1
 
             out.write(FILE_HEADER.format(path=rel))
