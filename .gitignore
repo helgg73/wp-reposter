@@ -33,3 +33,4 @@ wheels/
 
 # Data
 data/state.json
+project_dump.txt
