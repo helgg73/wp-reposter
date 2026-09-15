@@ -3,15 +3,13 @@ max_new_posts_per_run: 5
 
 sources:
   - name: "Областная газета"
-    base_url: "https://oblgazeta.ru"
+    base_url: "https://oblgazeta.ru"  # <-- ВАЖНО: именно base_url
     api_path: "/wp-json/wp/v2"
-    featured_image_size: "medium"  # thumbnail, medium, large, full
+    featured_image_size: "medium"
     max_pages: 3
-    per_page: 20  # Сколько постов запрашивать за один HTTP-запрос (макс. 100)
-    
-    # Фильтрация по ID (оставь пустым [], если не нужно)
-    include_category_ids: []  # Например: [5, 12] (только эти категории)
-    exclude_category_ids: []  # Например: [3] (исключить эту категорию)
+    per_page: 20
+    include_category_ids: []
+    exclude_category_ids: []
     include_tag_ids: []
     exclude_tag_ids: []
 
@@ -19,5 +17,4 @@ export:
   max_channel:
     enabled: true
     disable_link_preview: true
-    template: "📢 {title}\n\n{content}\n\n🔗 {link}"
-
+    template: "📢 {title}\n\n{content}🔗 {link}"

@@ -13,18 +13,21 @@ class WordPressParser:
         self.base_url = source.base_url.rstrip("/")
         self.api_url = f"{self.base_url}{source.api_path}"
 
-    def fetch_posts(self) -> list[dict]:
-        """Загружает посты через WP REST API с поддержкой пагинации"""
+    def fetch_posts(self, cutoff_date: str | None = None) -> list[dict]:
+        """Загружает посты через WP REST API с поддержкой пагинации и даты отсечки"""
         all_posts = []
 
         params = {
-            "_embed": True,  # Запрашиваем встроенные данные (картинки, категории)
+            "_embed": True,
             "orderby": "date",
-            "order": "desc",
+            "order": "desc",  # От новых к старым
             "per_page": self.source.per_page,
         }
 
-        # Серверная фильтрация по включенным категориям (WP API поддерживает это)
+        # ЕСЛИ есть дата отсечки, просим API только посты новее этой даты
+        if cutoff_date:
+            params["after"] = cutoff_date
+
         if self.source.include_category_ids:
             params["categories"] = ",".join(map(str, self.source.include_category_ids))
 
@@ -40,13 +43,11 @@ class WordPressParser:
                     break
 
                 for post in posts:
-                    # Клиентская фильтрация исключений (WP API не имеет exclude параметров)
                     if self._should_exclude(post):
                         continue
 
                     all_posts.append(self._format_post(post))
 
-                # Если постов меньше, чем per_page, значит это последняя страница
                 if len(posts) < self.source.per_page:
                     break
 
