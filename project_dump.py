@@ -5,15 +5,21 @@
 
 Список файлов берётся из `git ls-files --cached`, поэтому правила
 `.gitignore` (включая вложенные и глобальный `~/.gitignore`) работают
-автоматически. Бинарные файлы, lock-файлы, сгенерированный код и
-потенциальные секреты пропускаются. Результат пишется в
-`project_dump.txt` с оглавлением в начале и заголовками
+автоматически. Бинарные файлы, lock-файлы, сгенерированный код,
+Markdown-документация и потенциальные секреты пропускаются. Результат
+пишется в `project_dump.txt` с оглавлением в начале и заголовками
 `===== path =====` перед каждым файлом.
 
 Перед записью скрипт проверяет список файлов эвристикой «похоже
 на секрет» (по имени) и отказывается работать, если нашёл что-то
 подозрительное — защита от случайной отправки `.env`, `credentials.*`
 и подобного в облачную LLM. Продолжить можно флагом `--force`.
+
+Шаблоны `.env` без реальных секретов (`.env.example`, `.env.sample`,
+`.env.template`, `.env.dist`) остаются в дампе — они полезны, чтобы
+LLM видел ожидаемые переменные окружения. Реализовано через
+allow-list, который проверяется после пользовательских `-x`, но до
+встроенных `EXCLUDE_PATTERNS`.
 
 Файлы, которые не удалось прочитать как UTF-8, включаются в дамп
 с заглушками `�`, но скрипт печатает предупреждение в stderr с
@@ -86,7 +92,8 @@ EXCLUDE_PATTERNS = {
     "*.min.js",
     "*.min.css",
     "*.map",
-    # бинарные форматы, которые не отсеиваются is_binary()
+    # форматы, которые либо не отсеиваются is_binary() (*.svg — текст),
+    # либо всё равно не нужны в дампе (иконки, изображения, PDF)
     "*.svg",
     "*.ico",
     "*.png",
@@ -131,6 +138,20 @@ EXCLUDE_PATTERNS = {
     ".ssh/*",
 }
 
+# Файлы, которые НЕ исключаются, даже если совпали с EXCLUDE_PATTERNS.
+# Сейчас — только шаблоны .env без реальных секретов: их полезно
+# видеть в дампе, чтобы LLM понимал ожидаемые переменные окружения.
+ALLOW_PATTERNS = {
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+    ".env.dist",
+    "*.env.example",
+    "*.env.sample",
+    "*.env.template",
+    "*.env.dist",
+}
+
 # Подстроки в имени файла, которые намекают на секреты. Используются
 # эвристикой looks_like_secret() — не заменяют EXCLUDE_PATTERNS,
 # а дополняют их: список паттернов всегда неполный.
@@ -144,8 +165,8 @@ SECRET_HINTS = (
     "api_key",
     "private",
     # "auth" исключён: даёт ложные срабатывания на AUTHORS,
-    # authentication.md, authorization.md. См. ADR 0001.
-
+    # authentication.md, authorization.md. При необходимости
+    # можно вернуть — allow-list ортогонален hints, конфликта нет.
 )
 
 # Точные имена файлов, которые почти всегда секреты.
@@ -157,8 +178,8 @@ SUSPICIOUS_FILENAMES = (
 )
 
 # Расширения исходного кода: файлы с этими расширениями не считаются
-# секретами, даже если в имени есть "auth" или "token" — это код,
-# а не данные.
+# секретами, даже если в имени есть "token" или "password" —
+# это код, а не данные.
 CODE_EXTENSIONS = {
     ".py",
     ".js",
@@ -257,9 +278,27 @@ def _matches(rel: str, name: str, pat: str) -> bool:
     return fnmatch.fnmatchcase(name_low, pat_low) or fnmatch.fnmatchcase(rel_low, pat_low)
 
 
-def is_excluded(rel: str, patterns: Iterable[str]) -> bool:
-    """Проверяет путь по списку исключений (glob-паттерны)."""
+def is_excluded(
+    rel: str,
+    patterns: Iterable[str],
+    allow: Iterable[str],
+    user_patterns: Iterable[str],
+) -> bool:
+    """
+    Проверяет путь по спискам исключений.
+
+    Приоритет:
+    1. Пользовательские паттерны (``-x``) — всегда исключают.
+    2. Allow-list — возвращает файл обратно (например, ``.env.example``).
+    3. Встроенные паттерны — исключают.
+
+    Это позволяет пользователю явно исключить даже то, что в allow-list.
+    """
     name = rel.rsplit("/", 1)[-1]
+    if any(_matches(rel, name, pat) for pat in user_patterns):
+        return True
+    if any(_matches(rel, name, pat) for pat in allow):
+        return False
     return any(_matches(rel, name, pat) for pat in patterns)
 
 
@@ -270,7 +309,8 @@ def looks_like_secret(rel: str) -> bool:
     Используется для блокировки записи дампа (см. ``main``) — НЕ
     заменяет список исключений, а дополняет его. Файлы исходного
     кода (``.py``, ``.js`` и т.п.) не считаются секретами, даже если
-    в имени есть «token»: это код, а не данные.
+    в имени есть «token» или «password»: это код, а не данные.
+    Например, ``tokenizer.py`` и ``password_reset.py`` — код.
     """
     low = rel.lower()
     name = low.rsplit("/", 1)[-1]
@@ -334,6 +374,8 @@ def collect_included(
     root: Path,
     files: list[str],
     patterns: Iterable[str],
+    allow: Iterable[str],
+    user_patterns: Iterable[str],
 ) -> CollectResult:
     """
     Прогоняет список git-файлов через фильтры и оценивает объём.
@@ -343,7 +385,11 @@ def collect_included(
 
     :param root: корень репозитория.
     :param files: список путей относительно корня (из ``git_ls_files``).
-    :param patterns: glob-паттерны для исключения.
+    :param patterns: встроенные glob-паттерны для исключения.
+    :param allow: glob-паттерны, возвращающие файл в дамп, даже если
+        он совпал с ``patterns`` (шаблоны ``.env.example``).
+    :param user_patterns: паттерны из ``-x``; проверяются первыми
+        и имеют приоритет над ``allow`` и ``patterns``.
     :return: ``CollectResult`` с путями, размерами, счётчиками и оценкой.
     """
     included: list[str] = []
@@ -353,7 +399,7 @@ def collect_included(
     estimated_bytes = 0
 
     for rel in files:
-        if is_excluded(rel, patterns):
+        if is_excluded(rel, patterns, allow, user_patterns):
             skipped_excluded += 1
             continue
         f = root / rel
@@ -438,12 +484,14 @@ def main() -> None:
 
     warn_if_not_ignored(root, args.output)
 
-    # Собираем итоговый набор паттернов.
-    patterns: set[str] = set(args.exclude)
+    # Пользовательские паттерны отделены от встроенных:
+    # у них приоритет над allow-list и EXCLUDE_PATTERNS.
+    user_patterns: set[str] = set(args.exclude)
+    builtin_patterns: set[str] = set()
     if not args.no_default_excludes:
-        patterns |= EXCLUDE_PATTERNS
+        builtin_patterns |= EXCLUDE_PATTERNS
 
-    result = collect_included(root, files, patterns)
+    result = collect_included(root, files, builtin_patterns, ALLOW_PATTERNS, user_patterns)
 
     # Пустой результат — почти всегда ошибка конфигурации или не тот репозиторий.
     if not result.included:
@@ -533,7 +581,7 @@ def main() -> None:
     print(f"Готово: {out_path.name}")
     print(f"Файлов включено: {included}")
     if encoding_issues:
-        print(f"⚠  Файлов с потерями кодировки: {encoding_issues}")
+        print(f"⚠  Файлов, прочитанных с заглушками: {encoding_issues}")
     print(f"Пропущено (исключения): {result.skipped_excluded}")
     print(f"Пропущено (бинарные): {result.skipped_binary}")
     print(f"Объём: {total_bytes:,} байт")
