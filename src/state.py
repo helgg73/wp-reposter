@@ -43,6 +43,6 @@ class StateManager:
         self._save()
 
     def update_cutoff_date(self, date_str: str):
-        """Обновляет дату отсечки (самый старый пост, который мы взяли в работу)"""
+        """Обновляет дату отсечки (самый новый пост, который мы взяли в работу)"""
         self.last_processed_date = date_str
         self._save()
