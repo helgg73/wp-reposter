@@ -18,7 +18,9 @@ async def check_sources(app_config, secrets, state, exporter):
         parser = WordPressParser(source)
         try:
             # 1. Получаем посты от API
-            fetched_entries = parser.fetch_posts(cutoff_date=state.last_processed_date)
+            fetched_entries = await parser.fetch_posts(
+                cutoff_date=state.last_processed_date
+            )  # ← await
 
             # 2. Оставляем только те, которых еще нет в state.json
             new_entries = [
@@ -58,14 +60,13 @@ async def check_sources(app_config, secrets, state, exporter):
                 if message_id:
                     state.mark_processed(guid=guid, message_id=message_id, channel="max")
                     sent_count += 1
-                    # Запоминаем дату самого нового отправленного поста (он первый в списке, т.к. order=desc)
+
                     if newest_sent_date is None:
                         newest_sent_date = entry.get("published")
 
             print(f"✅ Отправлено постов: {sent_count}")
 
-            # 5. Обновляем границу времени на дату САМОГО НОВОГО отправленного поста.
-            # Это гарантирует, что мы движемся только вперёд во времени и никогда не вернёмся к старому "хвосту".
+            # 5. Обновляем границу времени
             if newest_sent_date:
                 state.update_cutoff_date(newest_sent_date)
                 print(
@@ -73,7 +74,7 @@ async def check_sources(app_config, secrets, state, exporter):
                 )
 
         finally:
-            parser.close()
+            await parser.close()  # ← await
 
 
 async def main():
@@ -99,9 +100,9 @@ async def main():
             await asyncio.sleep(app_config.check_interval)
 
     except (KeyboardInterrupt, asyncio.CancelledError):
-        print("\n🛑 Получен сигнал остановки. Завершаем работу...")
+        print("\n Получен сигнал остановки. Завершаем работу...")
     finally:
-        print("🧹 Закрытие сетевых сессий...")
+        print(" Закрытие сетевых сессий...")
         await exporter.close()
         print("✅ Репостер корректно остановлен.")
 
