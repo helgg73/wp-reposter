@@ -3,14 +3,15 @@
 - **Status:** Active
 - **Date:** 2026-09-15
 - **Updated:** 2026-09-16
-- **Related:** ADR 0001–0022
+- **Related:** ADR 0001–0025
 
 ## Обзор
 
 | Этап | Фокус | Статус | Ключевые технологии |
 |------|-------|--------|---------------------|
-| 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ⚠️ Требует доработки (S2-12) | uv, ruff, httpx, pydantic, maxapi, asyncio |
-| 2 | Фильтрация по категориям/тегам + unit-тесты | 🟡 В работе | pytest, respx |
+| 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ✅ Done | uv, ruff, httpx, pydantic, maxapi, asyncio |
+| 2 | Фильтрация по категориям/тегам + unit-тесты | ✅ Done | pytest, respx |
+| 2b | Автономный запуск: systemd, логирование, отказоустойчивость | 🟡 В работе | systemd, logging, filelock, retry/backoff |
 | 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
@@ -39,12 +40,17 @@ doc/adr/
 ├── 0002-adr-uv-package-manager.md
 ├── ...
 ├── 0015-code-fixes-plan.md
-├── 0022-adr-vk-api.md
-── ROADMAP.md # этот файл
 ├── 0016-stage-2-filtering-and-tests.md
 ├── 0017-stage-3-vk-integration.md
 ├── 0018-stage-4-web-docker-postgres.md
 ├── 0019-stage-5-advanced-ui.md
+├── 0020-modules-structure-and-responsibilities.md
+├── 0021-search-taxonomies-by-taxonomy-field-instead-of-index.md
+├── 0022-adr-vk-api.md
+├── 0023-server-side-post-filtering-by-tags.md
+├── 0024-soft-handling-of-incorrect-post-dates-in-parser.md
+├── 0025-autonomous-run-systemd.md
+├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```
 

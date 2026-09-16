@@ -13,7 +13,8 @@
 | Этап | Файл | Статус |
 |------|------|--------|
 | 1 | — (ADR 0002–0015) | ✅ Done |
-| 2 | [0016-stage-2-filtering-and-tests.md](0016-stage-2-filtering-and-tests.md) | 🟡 In Progress |
+| 2 | [0016-stage-2-filtering-and-tests.md](0016-stage-2-filtering-and-tests.md) | ✅ Done |
+| 2b | [0025-autonomous-run-systemd.md](0025-autonomous-run-systemd.md) | 🟡 In Progress |
 | 3 | [0017-stage-3-vk-integration.md](0017-stage-3-vk-integration.md) | ⚪ Planned |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
 | 5 | [0019-stage-5-advanced-ui.md](0019-stage-5-advanced-ui.md) | ⚪ Planned |
@@ -30,9 +31,7 @@
 
 **Примечание:** Все критичные задачи Этапа 1 выполнены. Код соответствует архитектуре.
 
-## Этап 2 (In Progress) — [0016](0016-stage-2-filtering-and-tests.md)
-
-**Порядок выполнения:**
+## Этап 2 (завершён) — [0016](0016-stage-2-filtering-and-tests.md)
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
@@ -40,21 +39,46 @@
 | 2 | S2-10 | **Заменить `.get()` на прямой доступ с валидацией** | 0004, 0020 | **✅ Done** |
 | 3 | S2-11 | **Перевести парсер в async** | 0005, 0013, 0015 | **✅ Done** |
 | 4 | S2-01 | Настроить pytest в `pyproject.toml` | 0005 | ✅ Done |
-| 5 | S2-02 | Unit-тесты на `_should_exclude()` | 0004 | ✅ Done |
+| 5 | S2-02 | Unit-тесты на `_should_exclude()` | 0004, 0021 | ✅ Done |
 | 6 | S2-03 | Unit-тесты на `fetch_posts()` с respx (async) | 0004, 0007, 0023 | ✅ Done |
 | 7 | S2-04 | Unit-тесты на `_clean_text()` (в парсере) | 0004 | ✅ Done |
 | 8 | S2-05 | Unit-тесты на `StateManager` | 0009 | ✅ Done |
 | 9 | S2-06 | Уточнить `_should_exclude()` (порядок `wp:term`) | 0004, 0015, 0021 | ✅ Done |
 | 10 | S2-07 | Проверить `published` на `null` | 0007, 0015, 0024 | ✅ Done |
-| 11 | S2-08 | Интеграционный тест на реальном WP (опционально) | 0004 |  ✅ Done|
+| 11 | S2-08 | Интеграционный тест на реальном WP (опционально) | 0004 | ✅ Done |
 | 12 | S2-12 | **Добавить батчинг `_save()` в StateManager** | 0009, 0015 | ✅ Done |
 
-**Логика порядка:**
+**Логика порядка (историческая):**
 1. S2-09, S2-10 — критично, исправление Этапа 1 (✅ выполнено).
-2. S2-11 — async парсер, **до** написания тестов (чтобы не переписывать их) (✅ выполнено).
-3. S2-01 — настройка pytest.
-4. S2-02…S2-08 — покрытие тестами уже async-кода.
-5. S2-12 — оптимизация `_save()`, после тестов StateManager (S2-05).
+2. S2-11 — async парсер, **до** написания тестов (✅ выполнено).
+3. S2-01 — настройка pytest (✅ выполнено).
+4. S2-02…S2-08 — покрытие тестами (✅ выполнено).
+5. S2-12 — оптимизация `_save()` (✅ выполнено).
+
+## Этап 2b (In Progress) — [0025](0025-autonomous-run-systemd.md)
+
+Подготовка к автономному запуску на выделенном Linux-хосте через systemd.
+
+| # | ID | Задача | ADR | Статус |
+|---|----|--------|-----|--------|
+| 1 | S2b-01 | Очистка репозитория: `settings.example.yaml`, `.gitignore` для `config/settings.yaml`, `data/`, `logs/` | 0025 | Todo |
+| 2 | S2b-02 | Логирование: замена `print()` на `logging`, `RotatingFileHandler`, формат, уровни | 0025 | Todo |
+| 3 | S2b-03 | Retry/backoff для `fetch_posts` (3 попытки, экспоненциальная задержка) | 0025 | Todo |
+| 4 | S2b-04 | `try/except` на уровне источника и цикла в `main.py` | 0025 | Todo |
+| 5 | S2b-05 | `filelock` на `data/state.lock` в `StateManager` | 0025 | Todo |
+| 6 | S2b-06 | Graceful shutdown: SIGTERM/SIGINT на POSIX, `KeyboardInterrupt` на Windows | 0025 | Todo |
+| 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M`, `Restart=always` | 0025 | Todo |
+| 8 | S2b-08 | Порядок «отправить → state.mark_processed → flush» в `main.py` (идемпотентность) | 0025 | Todo |
+| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown (кроссплатформенно) | 0025 | Todo |
+
+**Логика порядка:**
+1. S2b-01 — сначала очистка репозитория, чтобы случайно не закоммитить реальные настройки.
+2. S2b-02 — логирование: без него не видно, что происходит при retry и ошибках.
+3. S2b-03, S2b-04 — отказоустойчивость.
+4. S2b-05, S2b-06 — lock и shutdown (нужны для systemd).
+5. S2b-07 — unit-файл.
+6. S2b-08 — порядок записи state (можно параллельно с S2b-03…S2b-06).
+7. S2b-09 — тесты на всё новое.
 
 ## Этап 3 (Planned) — [0017](0017-stage-3-vk-integration.md)
 
@@ -101,4 +125,5 @@
 |------|-----------|
 | 2026-09-15 | Первоначальная версия BACKLOG |
 | 2026-09-16 | Добавлены S2-09, S2-10, S2-11, S2-12. S2-09, S2-10, S2-11 отмечены как Done. Исправлены ссылки на ADR 0022 (VK API). S2-04 переименован в `_clean_text()`. Этап 1 переведён в статус Done. |
-| 2026-09-16 | Выполнены S2-01 - S2-08
+| 2026-09-16 | Выполнены S2-01 – S2-08. Этап 2 переведён в Accepted. |
+| 2026-09-16 | Добавлен Этап 2b (ADR 0025): подготовка к автономному запуску через systemd. Задачи S2b-01…S2b-09. |
