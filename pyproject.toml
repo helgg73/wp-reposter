@@ -39,3 +39,13 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "integration: интеграционные тесты (требуют сеть, не запускаются в CI)",
+    "slow: медленные тесты",
+]
+# Используем список, чтобы избежать проблем с кавычками в TOML
+addopts = ["-m", "not integration and not slow"]

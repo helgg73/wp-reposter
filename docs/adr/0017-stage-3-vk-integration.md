@@ -49,6 +49,7 @@ class VkChannelConfig(BaseModel):
     template: str = "{title}\n\n{content}\n\n{link}"
     max_text_length: int = 5000
 
+
 class ExportConfig(BaseModel):
     max_channel: MaxChannelConfig = Field(default_factory=MaxChannelConfig)
     vk_channel: VkChannelConfig = Field(default_factory=VkChannelConfig)

@@ -17,12 +17,7 @@ async def check_sources(app_config, secrets, state, exporter):
 
         parser = WordPressParser(source)
         try:
-            # 1. Получаем посты от API
-            fetched_entries = await parser.fetch_posts(
-                cutoff_date=state.last_processed_date
-            )  # ← await
-
-            # 2. Оставляем только те, которых еще нет в state.json
+            fetched_entries = await parser.fetch_posts(cutoff_date=state.last_processed_date)
             new_entries = [
                 entry for entry in fetched_entries if not state.is_processed(entry["id"])
             ]
@@ -34,20 +29,16 @@ async def check_sources(app_config, secrets, state, exporter):
                 print("✅ Новых постов нет, ожидаем следующего цикла.")
                 continue
 
-            # 3. Применяем лимит
             max_to_send = app_config.max_new_posts_per_run
             entries_to_send = new_entries[:max_to_send]
             skipped_count = total_new - len(entries_to_send)
 
             if skipped_count > 0:
-                print(
-                    f"⚠️  Пропущено {skipped_count} постов (лимит {max_to_send}). Они игнорируются, чтобы избежать спама устаревшим контентом."
-                )
+                print(f"⚠️  Пропущено {skipped_count} постов (лимит {max_to_send}).")
 
             sent_count = 0
             newest_sent_date = None
 
-            # 4. Отправляем
             for entry in entries_to_send:
                 guid = entry["id"]
                 image_url = entry.get("_image_url")
@@ -60,21 +51,20 @@ async def check_sources(app_config, secrets, state, exporter):
                 if message_id:
                     state.mark_processed(guid=guid, message_id=message_id, channel="max")
                     sent_count += 1
-
                     if newest_sent_date is None:
                         newest_sent_date = entry.get("published")
 
             print(f"✅ Отправлено постов: {sent_count}")
 
-            # 5. Обновляем границу времени
             if newest_sent_date:
                 state.update_cutoff_date(newest_sent_date)
-                print(
-                    f"💡 Граница времени сдвинута вперёд: {newest_sent_date} (посты старее этой даты игнорируются навсегда)"
-                )
+                print(f"💡 Граница времени сдвинута вперёд: {newest_sent_date}")
+
+            # Сохраняем состояние на диск один раз после обработки источника
+            state.flush()
 
         finally:
-            await parser.close()  # ← await
+            await parser.close()
 
 
 async def main():

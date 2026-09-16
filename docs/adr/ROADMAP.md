@@ -9,7 +9,7 @@
 
 | Этап | Фокус | Статус | Ключевые технологии |
 |------|-------|--------|---------------------|
-| 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ⚠️ Требует доработки (S2-11, S2-12) | uv, ruff, httpx, pydantic, maxapi, asyncio |
+| 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ⚠️ Требует доработки (S2-12) | uv, ruff, httpx, pydantic, maxapi, asyncio |
 | 2 | Фильтрация по категориям/тегам + unit-тесты | 🟡 В работе | pytest, respx |
 | 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |

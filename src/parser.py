@@ -9,11 +9,11 @@ from .models import SourceConfig
 class WordPressParser:
     def __init__(self, source: SourceConfig):
         self.source = source
-        self.client = httpx.AsyncClient(timeout=30.0)  # ← AsyncClient вместо Client
+        self.client = httpx.AsyncClient(timeout=30.0)
         self.base_url = source.base_url.rstrip("/")
         self.api_url = f"{self.base_url}{source.api_path}"
 
-    async def fetch_posts(self, cutoff_date: str | None = None) -> list[dict]:  # ← async def
+    async def fetch_posts(self, cutoff_date: str | None = None) -> list[dict]:
         """Загружает посты через WP REST API с поддержкой пагинации и даты отсечки"""
         all_posts = []
 
@@ -29,11 +29,13 @@ class WordPressParser:
 
         if self.source.include_category_ids:
             params["categories"] = ",".join(map(str, self.source.include_category_ids))
+        if self.source.include_tag_ids:
+            params["tags"] = ",".join(map(str, self.source.include_tag_ids))
 
         for page in range(1, self.source.max_pages + 1):
             params["page"] = page
             try:
-                response = await self.client.get(f"{self.api_url}/posts", params=params)  # ← await
+                response = await self.client.get(f"{self.api_url}/posts", params=params)
                 response.raise_for_status()
                 posts = response.json()
 
@@ -43,7 +45,9 @@ class WordPressParser:
                 for post in posts:
                     if self._should_exclude(post):
                         continue
-                    all_posts.append(self._format_post(post))
+                    formatted = self._format_post(post)
+                    if formatted is not None:
+                        all_posts.append(formatted)
 
                 if len(posts) < self.source.per_page:
                     break
@@ -55,10 +59,25 @@ class WordPressParser:
         return all_posts
 
     def _should_exclude(self, post: dict) -> bool:
-        """Проверяет, нужно ли исключить пост по категориям или тегам"""
+        """Проверяет, нужно ли исключить пост по категориям или тегам.
+        Таксономии ищутся по полю taxonomy, а не по индексу в массиве wp:term.
+        См. ADR 0021.
+        """
         terms = post.get("_embedded", {}).get("wp:term", [])
-        post_category_ids = [t["id"] for t in terms[0]] if len(terms) > 0 else []
-        post_tag_ids = [t["id"] for t in terms[1]] if len(terms) > 1 else []
+
+        # Ищем таксономии по полю taxonomy, а не по индексу
+        post_category_ids = []
+        post_tag_ids = []
+
+        for term_list in terms:
+            if not term_list:
+                continue
+            # Проверяем taxonomy первого элемента (все элементы в списке одной таксономии)
+            taxonomy = term_list[0].get("taxonomy", "")
+            if taxonomy == "category":
+                post_category_ids = [t["id"] for t in term_list]
+            elif taxonomy == "post_tag":
+                post_tag_ids = [t["id"] for t in term_list]
 
         return any(
             cat_id in post_category_ids for cat_id in self.source.exclude_category_ids
@@ -86,21 +105,51 @@ class WordPressParser:
         return None
 
     def _clean_text(self, html_text: str) -> str:
-        """Убирает HTML-теги и декодирует сущности (&#8230; и т.д.)"""
+        """Убирает HTML-теги, декодирует сущности и добавляет точку в конце"""
         text = html.unescape(html_text)
-        text = re.sub(r"<[^>]+>", "", text)
-        text = re.sub(r"\s*\[.*?\]\s*$", "", text)
-        text = re.sub(r"\s*…\s*$", "", text)
-        return " ".join(text.split())
+        text = re.sub(r"<[^>]+>", "", text)  # Удаляем все HTML-теги
+        text = re.sub(r"\s*\[…\]\s*$", "", text)  # Удаляем только […] в конце
+        text = re.sub(r"\s*…\s*$", "", text)  # Удаляем … в конце
+        text = " ".join(text.split())  # Нормализуем пробелы
 
-    def _format_post(self, post: dict) -> dict:
-        """Преобразует ответ API в удобный для экспортера формат"""
+        # Добавляем точку, если текст не пустой и не заканчивается на . ! ?
+        if text and text[-1] not in (".", "!", "?"):
+            text += "."
+
+        return text
+
+    def _format_post(self, post: dict) -> dict | None:
+        """Преобразует ответ API в удобный для экспортера формат.
+
+        Возвращает None, если пост некорректен (отсутствует обязательное поле).
+        См. ADR 0024.
+        """
+        # Валидация обязательных полей
+        if "guid" not in post:
+            print(f"⚠️  Пропущен пост без 'guid': {post}")
+            return None
+
+        guid = str(post["guid"])
+
+        if "title" not in post or "rendered" not in post.get("title", {}):
+            print(f"⚠️  Пропущен пост {guid} без 'title.rendered'")
+            return None
+
+        if "link" not in post:
+            print(f"⚠️  Пропущен пост {guid} без 'link'")
+            return None
+
+        if not post.get("date"):
+            print(f"️  Пропущен пост {guid} без 'date' (null или отсутствует)")
+            return None
+
+        # Извлекаем контент с fallback
         excerpt = post.get("excerpt", {}).get("rendered", "")
         content = post.get("content", {}).get("rendered", "")
         raw_text = excerpt if excerpt else content
 
         return {
-            "id": str(post["guid"]),
+            "id": guid,
             "link": post["link"],
             "title": post["title"]["rendered"],
             "content": self._clean_text(raw_text),

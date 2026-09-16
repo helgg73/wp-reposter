@@ -37,6 +37,7 @@
   import yaml
   from .models import AppConfig, Secrets
 
+
   def load_settings() -> tuple[AppConfig, Secrets]:
       yaml_path = Path("config/settings.yaml")
       if not yaml_path.exists():

@@ -10,7 +10,7 @@ sources:
     per_page: 20
     include_category_ids: []
     exclude_category_ids: []
-    include_tag_ids: []
+    include_tag_ids: [3223]
     exclude_tag_ids: []
 
 export:

@@ -68,7 +68,7 @@ src/
     "content": "Очищенный текст без HTML, с точкой в конце",
     "link": "https://example.com/post",
     "published": "2026-09-15T10:30:00",
-    "_image_url": "https://example.com/image.jpg"  # или None
+    "_image_url": "https://example.com/image.jpg",  # или None
 }
 ```
 
