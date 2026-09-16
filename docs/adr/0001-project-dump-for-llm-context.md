@@ -1,6 +1,6 @@
 # ADR 0001: Дамп репозитория в один файл для LLM
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-15
 
 ## Context

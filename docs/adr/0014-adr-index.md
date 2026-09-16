@@ -1,27 +1,75 @@
 # ADR 0014: Индекс ADR
 
 - **Status:** Accepted
-- **Date:** 2026-09-15
+- **Date:** 2026-09-10
+- **Updated:** 2026-09-16
+- **Related:** Все ADR проекта
+
+## Context
+
+Проект использует Architecture Decision Records для фиксации ключевых решений. Этот документ служит индексом всех ADR.
 
 ## Index
 
-| ID | Файл | Решение | Статус |
-|----|------|---------|--------|
-| — | `0001-project-dump-for-llm-context.md` | Дамп репозитория для LLM | Proposed |
-| 0002 | `0002-adr-uv-package-manager.md` | uv | Accepted |
-| 0003 | `0003-adr-ruff-linter.md` | ruff | Accepted |
-| 0004 | `0004-adr-wordpress-rest-api.md` | WP REST API | Accepted |
-| 0005 | `0005-adr-asyncio-architecture.md` | asyncio | Accepted |
-| 0006 | `0006-adr-pydantic-settings-secrets.md` | pydantic-settings | Accepted |
-| 0007 | `0007-adr-cutoff-date-spam-protection.md` | cutoff_date | Accepted |
-| 0008 | `0008-adr-maxapi-sdk.md` | maxapi | Accepted |
-| 0009 | `0009-adr-json-state-storage.md` | JSON state | Accepted |
-| 0010 | `0010-adr-max-new-posts-per-run.md` | max_new_posts_per_run | Accepted |
-| 0011 | `0011-adr-disable-link-preview.md` | disable_link_preview | Accepted |
-| 0012 | `0012-adr-single-source-pydantic-models.md` | Единый источник моделей | Accepted |
-| 0013 | `0013-adr-sync-parser-exception.md` | Синхронный парсер | Accepted |
-| 0014 | `0014-adr-index.md` | Индекс ADR | Accepted |
+### Инфраструктура и инструменты
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0001 | Project dump for LLM context | Accepted | 2026-09-10 |
+| 0002 | uv как менеджер пакетов | Accepted | 2026-09-15 |
+| 0003 | ruff для линтинга и форматирования | Accepted | 2026-09-15 |
+
+### Архитектура
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0004 | WordPress REST API вместо RSS | Accepted | 2026-09-15 |
+| 0005 | Асинхронная архитектура на asyncio | Accepted | 2026-09-15 |
+| 0013 | Синхронный парсер как временное исключение | Accepted | 2026-09-10 |
+| 0020 | Структура модулей и зоны ответственности | Accepted | 2026-09-16 |
+
+### Конфигурация и секреты
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0006 | pydantic-settings для секретов | Accepted | 2026-09-15 |
+| 0012 | Единый источник Pydantic-моделей | Accepted | 2026-09-15 |
+
+### Интеграции
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0008 | maxapi как SDK для MAX | Accepted | 2026-09-15 |
+| 0011 | disable_link_preview по умолчанию | Accepted | 2026-09-15 |
+| 0022 | VK API для публикации постов | Planned | 2026-09-16 |
+
+### Хранение данных и защита от спама
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0007 | cutoff_date логика (защита от спама) | Accepted | 2026-09-15 |
+| 0009 | JSON state хранение | Accepted | 2026-09-15 |
+| 0010 | Лимит постов за один цикл (max_new_posts_per_run) | Accepted | 2026-09-15 |
+
+### Этапы развития
+
+| ID | Название | Статус | Дата |
+|----|----------|--------|------|
+| 0015 | План миграции кода под ADR | Accepted | 2026-09-10 |
+| 0016 | Этап 2 — Фильтрация по рубрикам и тегам + unit-тесты | In Progress | 2026-09-15 |
+| 0017 | Этап 3 — Интеграция с ВКонтакте | Planned | 2026-09-15 |
+| 0018 | Этап 4 — Веб-интерфейс, Docker, PostgreSQL | Planned | 2026-09-15 |
+| 0019 | Этап 5 — Продвинутый UI и мультиканальность | Planned | 2026-09-15 |
+
+## Связь с другими документами
+
+- **ROADMAP.md** — обзор этапов и принципов.
+- **BACKLOG.md** — плоский список задач с ID.
+- **0016-stage-2-*.md** — детали Этапа 2.
+- **0017-stage-3-*.md** — детали Этапа 3.
+- **0018-stage-4-*.md** — детали Этапа 4.
+- **0019-stage-5-*.md** — детали Этапа 5.
 
 ## Not to touch
 
-- `0001-project-dump-for-llm-context.md` — исторический дамп кода.
+- `0001-project-dump-for-llm-context.md` — исторический дамп.
