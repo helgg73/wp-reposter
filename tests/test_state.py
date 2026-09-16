@@ -105,10 +105,11 @@ class TestStateManager:
         state1.mark_processed(guid="guid-2", message_id="mid.2", channel="max")
         state1.update_cutoff_date("2026-09-16T15:00:00")
 
-        # === КЛЮЧЕВОЕ ИЗМЕНЕНИЕ ===
         # Без этого вызова данные останутся только в памяти state1
         state1.flush()
-        # ============================
+
+        # Освобождаем блокировку перед "перезапуском" (имитация закрытия процесса)
+        state1.release_lock()
 
         # Загружаем заново
         state2 = StateManager(state_file=str(tmp_state_file))

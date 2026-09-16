@@ -9,6 +9,7 @@ dependencies = [
     "pydantic-settings>=2.2.0",
     "pyyaml>=6.0.1",
     "maxapi>=1.2.0",
+    "filelock>=3.32.7",
 ]
 
 [dependency-groups]

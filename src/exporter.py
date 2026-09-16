@@ -1,8 +1,12 @@
+import logging
+
 import httpx
 from maxapi import Bot
 from maxapi.types import InputMediaBuffer
 
 from .models import MaxChannelConfig
+
+logger = logging.getLogger(__name__)
 
 
 class MaxExporter:
@@ -14,36 +18,30 @@ class MaxExporter:
         self.http_client = httpx.AsyncClient(timeout=30.0)
 
     def format_post(self, entry: dict) -> str:
-        """Форматирует пост по шаблону (прямой доступ, без очистки)"""
-        # Прямой доступ — парсер уже подготовил данные
         data = {
             "title": entry["title"],
             "content": entry["content"],
             "link": entry["link"],
-            "published": entry.get("published", ""),  # published опционален в шаблоне
+            "published": entry.get("published", ""),
         }
         return self.config.template.format(**data)
 
     async def _download_image(self, image_url: str) -> bytes | None:
-        """Скачивает изображение по URL"""
         try:
             response = await self.http_client.get(image_url)
             response.raise_for_status()
             return response.content
         except Exception as e:
-            print(f"️  Не удалось скачать изображение {image_url}: {e}")
+            logger.warning(f"⚠️  Не удалось скачать изображение {image_url}: {e}")
             return None
 
     async def export(self, entry: dict, image_url: str | None = None) -> str | None:
-        """Отправляет пост в MAX"""
         if not self.config.enabled or not self.bot:
             return None
 
         text = self.format_post(entry)
-
         try:
             attachments = []
-
             if image_url:
                 image_data = await self._download_image(image_url)
                 if image_data:
@@ -58,29 +56,25 @@ class MaxExporter:
                 disable_link_preview=self.config.disable_link_preview,
             )
 
-            # Извлекаем message_id
             message_id = None
             if hasattr(result, "message") and hasattr(result.message, "body"):
                 message_id = result.message.body.mid
-
             if not message_id:
                 message_id = getattr(result, "id", None) or getattr(result, "message_id", None)
-                if message_id:
-                    message_id = str(message_id)
+            if message_id:
+                message_id = str(message_id)
 
             if message_id:
-                print(f"✅ Отправлено в MAX (mid={message_id}): {entry['title'][:50]}...")
+                logger.info(f"✅ Отправлено в MAX (mid={message_id}): {entry['title'][:50]}...")
             else:
-                print(f"⚠️  Отправлено, но ID не получен: {entry['title'][:50]}...")
-
+                logger.warning(f"⚠️  Отправлено, но ID не получен: {entry['title'][:50]}...")
             return message_id
 
         except Exception as e:
-            print(f"❌ Ошибка при отправке в MAX: {e}")
+            logger.error(f"❌ Ошибка при отправке в MAX: {e}")
             return None
 
     async def close(self):
-        """Корректно закрывает все сетевые сессии"""
         await self.http_client.aclose()
         if self.bot:
             try:

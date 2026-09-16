@@ -56,20 +56,19 @@
 5. S2-12 — оптимизация `_save()` (✅ выполнено).
 
 ## Этап 2b (In Progress) — [0025](0025-autonomous-run-systemd.md)
-
 Подготовка к автономному запуску на выделенном Linux-хосте через systemd.
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
-| 1 | S2b-01 | Очистка репозитория: `settings.example.yaml`, `.gitignore` для `config/settings.yaml`, `data/`, `logs/` | 0025 | Todo |
-| 2 | S2b-02 | Логирование: замена `print()` на `logging`, `RotatingFileHandler`, формат, уровни | 0025 | Todo |
-| 3 | S2b-03 | Retry/backoff для `fetch_posts` (3 попытки, экспоненциальная задержка) | 0025 | Todo |
-| 4 | S2b-04 | `try/except` на уровне источника и цикла в `main.py` | 0025 | Todo |
-| 5 | S2b-05 | `filelock` на `data/state.lock` в `StateManager` | 0025 | Todo |
-| 6 | S2b-06 | Graceful shutdown: SIGTERM/SIGINT на POSIX, `KeyboardInterrupt` на Windows | 0025 | Todo |
-| 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M`, `Restart=always` | 0025 | Todo |
-| 8 | S2b-08 | Порядок «отправить → state.mark_processed → flush» в `main.py` (идемпотентность) | 0025 | Todo |
-| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown (кроссплатформенно) | 0025 | Todo |
+| 1 | S2b-01 | Очистка репозитория: `settings.example.yaml`, `.gitignore` | 0025 | ✅ Done |
+| 2 | S2b-02 | Логирование: замена `print()` на `logging`, `RotatingFileHandler` | 0025 | ✅ Done |
+| 3 | S2b-03 | Retry/backoff для `fetch_posts` (3 попытки) | 0025 | ✅ Done |
+| 4 | S2b-04 | `try/except` на уровне источника и цикла в `main.py` | 0025 | ✅ Done |
+| 5 | S2b-05 | `filelock` на `data/state.lock` в `StateManager` | 0025 | ✅ Done |
+| 6 | S2b-06 | Graceful shutdown: SIGTERM/SIGINT, `KeyboardInterrupt` | 0025 | ✅ Done |
+| 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M` | 0025 |  In Progress |
+| 8 | S2b-08 | Порядок «отправить → state.mark_processed → flush» | 0025 | ✅ Done |
+| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown | 0025 |  Todo |
 
 **Логика порядка:**
 1. S2b-01 — сначала очистка репозитория, чтобы случайно не закоммитить реальные настройки.

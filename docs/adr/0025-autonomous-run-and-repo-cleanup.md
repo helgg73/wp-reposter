@@ -1,6 +1,6 @@
 # ADR 0025: Подготовка к автономному запуску через systemd
 
-- **Status:** Accepted
+- **Status:** In progress
 - **Date:** 2026-09-16
 - **Related:** ADR 0005 (asyncio), ADR 0006 (секреты), ADR 0007 (cutoff_date), ADR 0009 (JSON state), ADR 0016 (Этап 2), ADR 0020 (структура), ADR 0024 (мягкая обработка дат)
 
@@ -23,6 +23,8 @@
 5. **`uv.lock` есть, но venv не зафиксирован.** Для запуска на сервере нужно воспроизводимое окружение.
 
 **Решение о способе запуска:** systemd напрямую (не Docker). Обоснование — в разделе «Alternatives considered».
+
+**Уже есть тесты.** На Этапе 2 созданы `tests/test_parser.py`, `tests/test_state.py`, `tests/test_integration.py`. Они — **контракт** текущего поведения. Изменения Этапа 2b не должны их ломать без явного обоснования; если поведение меняется (retry, lock, logging), тесты нужно адаптировать осознанно, а не удалять или ослаблять.
 
 ## Decision
 
@@ -141,6 +143,46 @@ journalctl -u wp-reposter -f
 - Диск: логи до 60 МБ (ротация), state.json до 20 МБ при 100k постов.
 - Сеть: десятки МБ в сутки.
 
+### 6. Совместимость с существующими тестами
+
+На Этапе 2 созданы три файла тестов. Изменения Этапа 2b затрагивают их напрямую. Ниже — что именно меняется и как адаптировать.
+
+**`tests/test_parser.py`:**
+- Тест `test_http_error_handling` ожидает один запрос и пустой результат. С retry будет **3 запроса** (1с + 2с + 4с задержки). Варианты:
+  - **A.** Замокать `asyncio.sleep` (через `unittest.mock.patch`) — тест остаётся быстрым, проверяет `call_count == 3`.
+  - **B.** Использовать `respx` с `side_effect` — три ответа 500, проверить `call_count == 3`.
+  - **C.** Оставить один запрос, но изменить ожидание (не рекомендую: перестанет проверять retry).
+  - **Рекомендация:** вариант A или B, с явной проверкой, что retry делает ровно 3 попытки и не больше.
+- Остальные тесты (`TestShouldExclude`, `TestCleanText`, `TestFormatPostValidation`, `TestFetchPosts` без ошибок) не затрагиваются.
+- Добавить новый тест `test_retry_with_backoff` (S2b-09).
+
+**`tests/test_state.py`:**
+- Фикстуры создают `StateManager(state_file=...)` без lock-файла. Если lock берётся в `__init__`, тесты:
+  - создадут `state.lock` рядом со `state.json` в `tmp_path` — не страшно;
+  - но при параллельном запуске (pytest-xdist) могут конфликтовать.
+- **Рекомендация:** сделать lock **опциональным** через параметр `StateManager(state_file=..., use_lock: bool = True)`. В тестах передавать `use_lock=False`, в `main.py` — по умолчанию `True`. Это:
+  - сохраняет контракт существующих тестов (они не знают про lock);
+  - не создаёт лишних файлов в `tmp_path`;
+  - оставляет lock для продакшена.
+- Добавить новые тесты:
+  - `test_lock_prevents_second_instance` — два `StateManager` с `use_lock=True` на одном файле: второй должен упасть (`sys.exit(1)` или исключение).
+  - `test_lock_released_on_close` — после `close()` второй экземпляр может взять lock.
+- Существующие тесты `test_create_new_state`, `test_load_existing`, `test_is_processed_*`, `test_mark_processed`, `test_update_cutoff_date`, `test_serialization_roundtrip`, `TestStateManagerBatching` — **не меняются**.
+
+**`tests/test_integration.py`:**
+- Помечены `@pytest.mark.integration` и `@pytest.mark.slow`, по умолчанию отключены через `addopts = ["-m", "not integration and not slow"]`.
+- После изменений в `fetch_posts` (retry) они должны продолжать работать: публичный WP не отдаёт 500, retry не сработает.
+- Никаких правок не требуется.
+
+**Логирование вместо `print`:**
+- Сейчас тестов, проверяющих `print` через `capsys`, нет. Если появятся — использовать `caplog` из pytest вместо `capsys`.
+- В новых тестах (S2b-09) проверять логи через `caplog`, а не через перехват stdout.
+
+**Правило:** существующие тесты — **контракт**. Если изменение поведения требует правки теста, это должно быть:
+1. явно указано в описании задачи (S2b-XX);
+2. обосновано в PR/коммите;
+3. не приводить к ослаблению проверок (нельзя заменять `assert len(posts) == 2` на `assert len(posts) >= 1`).
+
 ## Alternatives considered
 
 - **A. Docker + `restart: unless-stopped`.** Отвергнуто: проект запускается на выделенном хосте без других контейнеров, `state.json` потребовал бы volume, логи — либо в volume, либо в `docker logs`, что дублирует journald. systemd даёт journald «из коробки», порядок запуска через `After=network-online.target`, и не требует слоя абстракции для одного процесса.
@@ -152,6 +194,7 @@ journalctl -u wp-reposter -f
 - **G. Полная идемпотентность через идемпотентный ключ MAX.** Отложено: требует поддержки на стороне MAX API, вне зоны Этапа 2. Текущий компромисс — «отправить → записать state → flush», с риском повторной отправки при краше в узком окне.
 - **H. `fcntl.flock` для file lock.** Отвергнуто: POSIX-only, на Windows тесты и локальный запуск падают с `ImportError`. Условный импорт с предупреждением в логе — рабочий вариант, но `filelock` чище и без ветвлений.
 - **I. `loop.add_signal_handler` без кроссплатформенной обёртки.** Отвергнуто: на Windows метод бросает `NotImplementedError`. Обёртка с ветвлением POSIX/Windows сохраняет корректный shutdown на обеих платформах.
+- **J. Переписать существующие тесты под новое поведение «с нуля».** Отвергнуто: тесты Этапа 2 — контракт, их нельзя удалять или ослаблять. Адаптация — только точечная (retry в `test_http_error_handling`, опциональный lock в `StateManager`).
 
 ## Consequences
 
@@ -166,6 +209,7 @@ journalctl -u wp-reposter -f
 - Graceful shutdown закрывает httpx и сохраняет state.
 - File lock работает на Windows и Linux без условных импортов.
 - Graceful shutdown работает на обеих платформах: на Linux — по SIGTERM/SIGINT, на Windows — по Ctrl+C.
+- Существующие тесты Этапа 2 остаются контрактом: изменения в них минимальны и обоснованы.
 
 **Отрицательные:**
 
@@ -175,6 +219,8 @@ journalctl -u wp-reposter -f
 - `MemoryMax=256M` может быть мало при очень больших `state.json`; при росте — увеличить.
 - `filelock` — ещё одна зависимость (лёгкая, чистый Python, без транзитивных зависимостей).
 - На Windows `SIGTERM` не перехватывается (его там и нет); автономный запуск на Windows через systemd невозможен по определению — это не наш сценарий (сервер — Linux), но тесты должны проходить.
+- `test_http_error_handling` требует правки (мок `asyncio.sleep` или `side_effect`), чтобы не замедляться на 7 секунд. Это осознанная правка, не ослабление.
+- `StateManager` получает параметр `use_lock` — небольшое расширение API. Существующие тесты передают `use_lock=False`; в проде — `True` по умолчанию.
 
 ## Done criteria
 
@@ -187,15 +233,27 @@ journalctl -u wp-reposter -f
 - `check_sources` оборачивает каждый источник в `try/except`.
 - `main` оборачивает `check_sources` в `try/except` и продолжает цикл.
 - `StateManager` берёт file lock через `filelock` на `data/state.lock`; второй инстанс завершается с кодом 1 и записью в лог.
+- `StateManager` принимает `use_lock: bool = True`; тесты используют `use_lock=False`.
 - `main` обрабатывает SIGTERM/SIGINT на POSIX через `loop.add_signal_handler`; на Windows — через `KeyboardInterrupt` и `finally`.
 - systemd unit установлен, `systemctl status wp-reposter` — `active (running)`.
 - `kill -9 <pid>` → systemd перезапускает через 10 секунд.
 - После `systemctl stop` процесс завершается в пределах `TimeoutStopSec`, `state.json` актуален, lock освобождён.
+- **Существующие тесты Этапа 2 проходят** (`uv run pytest`):
+  - `test_parser.py`: без изменений, кроме `test_http_error_handling` (мок `asyncio.sleep` или `side_effect`);
+  - `test_state.py`: без изменений, фикстуры используют `use_lock=False`;
+  - `test_integration.py`: без изменений (по-прежнему отключены по умолчанию).
+- **Новые тесты (S2b-09):**
+  - `test_retry_with_backoff` — 3 попытки при 500, `call_count == 3`;
+  - `test_lock_prevents_second_instance` — второй `StateManager` с `use_lock=True` падает;
+  - `test_lock_released_on_close` — после `close()` lock освобождён;
+  - `test_graceful_shutdown_posix` — по SIGTERM цикл завершается, `state.flush()` вызван (через мок);
+  - `test_graceful_shutdown_windows` — по `KeyboardInterrupt` цикл завершается корректно (через `pytest.raises`).
 - `uv run pytest` проходит на Linux **и** на Windows (тесты не падают из-за `fcntl`/`add_signal_handler`).
 
 ## Not to touch
 
 - Функционал Этапа 1 и 2 (парсинг, фильтрация, отправка в MAX) не меняется — только обрамляется логированием, retry и обработкой ошибок.
+- **Существующие тесты не удаляются и не ослабляются.** Точечные правки (`test_http_error_handling`, `use_lock=False` в фикстурах `test_state.py`) — обоснованы и не снижают строгость проверок.
 - ADR 0004, 0007, 0009, 0021, 0023, 0024 — не редактируются.
 - `0001-project-dump-for-llm-context.md` — исторический дамп.
 - Docker, PostgreSQL, FastAPI — Этап 4, не сейчас.

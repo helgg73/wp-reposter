@@ -1,0 +1,36 @@
+[Unit]
+Description=WP Reposter — репостер публикаций из WordPress в MAX
+Documentation=https://github.com/your-username/wp-reposter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=wp-reposter
+Group=wp-reposter
+WorkingDirectory=/opt/wp-reposter
+
+# Переменные окружения из .env файла
+EnvironmentFile=/opt/wp-reposter/.env
+
+# Запуск через venv, созданный uv sync
+ExecStart=/opt/wp-reposter/.venv/bin/python -m src.main
+
+# Автоперезапуск при падении
+Restart=always
+RestartSec=10
+
+# Таймаут на корректное завершение (должен быть > check_interval)
+TimeoutStopSec=60
+
+# Логи в journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wp-reposter
+
+# Ограничение ресурсов
+MemoryMax=256M
+CPUQuota=10%
+
+[Install]
+WantedBy=multi-user.target

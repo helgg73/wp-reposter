@@ -2,7 +2,11 @@
 .env
 .env.local
 .env.*.local
+
+# Конфигурация с реальными данными
 config/settings.yaml
+
+# Состояние и логи
 data/
 logs/
 
@@ -34,6 +38,5 @@ wheels/
 *.swp
 *.swo
 
-# Data
-data/state.json
+# Дамп проекта
 project_dump.txt
