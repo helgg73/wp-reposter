@@ -2,7 +2,7 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-16
+- **Updated:** 2026-09-17
 
 Плоский список задач. Формат ID: `S<этап>-<номер>`.
 
@@ -68,7 +68,17 @@
 | 6 | S2b-06 | Graceful shutdown: SIGTERM/SIGINT, `KeyboardInterrupt` | 0025 | ✅ Done |
 | 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M` | 0025 |  In Progress |
 | 8 | S2b-08 | Порядок «отправить → state.mark_processed → flush» | 0025 | ✅ Done |
-| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown | 0025 |  Todo |
+| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown | 0025 |  ✅ Done |
+| 10 | S2b-10 | Удалить мёртвый код: `FieldMapping` и `field_mapping` | 0026 | Todo |
+| 11 | S2b-11 | Убрать параметр `secrets` из `check_sources()` | 0026 | Todo |
+| 12 | S2b-12 | Не сохранять `self.bot_token` в `MaxExporter` | 0026 | Todo |
+| 13 | S2b-13 | Прогнать `ruff` и `pytest` после чисток | 0026 | Todo |
+| 14 | S2b-14 | Добавить `pre-commit` в dev-зависимости | 0027 | ✅ Done |
+| 15 | S2b-15 | Создать `.pre-commit-config.yaml` (sync-with-uv, ruff, ruff format) | 0027 | ✅ Done |
+| 16 | S2b-16 | Установить хуки: pre-commit + pre-push | 0027 | ✅ Done |
+| 17 | S2b-17 | Зафиксировать `rev` тегами (v0.6.0 для sync-with-uv, актуальный для ruff) | 0027 | ✅ Done |
+| 18 | S2b-18 | Прогнать `run --all-files` и `--hook-stage pre-push` | 0027 | ✅ Done |
+| 19 | S2b-19 | Обновить документацию (ADR 0014, ROADMAP, BACKLOG) | 0027 | ✅ Done |
 
 **Логика порядка:**
 1. S2b-01 — сначала очистка репозитория, чтобы случайно не закоммитить реальные настройки.
@@ -78,6 +88,11 @@
 5. S2b-07 — unit-файл.
 6. S2b-08 — порядок записи state (можно параллельно с S2b-03…S2b-06).
 7. S2b-09 — тесты на всё новое.
+8. S2b-10…S2b-13 — чистка мёртвого кода по ADR 0026 (не блокирует
+   остальные задачи, можно выполнять параллельно).
+9. S2b-14…S2b-19 — внедрение pre-commit как quality gate по ADR 0027.
+   Выполнено после закрытия S2b-10…S2b-13 (чистка мёртвого кода),
+   чтобы не плодить лишние коммиты.
 
 ## Этап 3 (Planned) — [0017](0017-stage-3-vk-integration.md)
 
@@ -126,3 +141,4 @@
 | 2026-09-16 | Добавлены S2-09, S2-10, S2-11, S2-12. S2-09, S2-10, S2-11 отмечены как Done. Исправлены ссылки на ADR 0022 (VK API). S2-04 переименован в `_clean_text()`. Этап 1 переведён в статус Done. |
 | 2026-09-16 | Выполнены S2-01 – S2-08. Этап 2 переведён в Accepted. |
 | 2026-09-16 | Добавлен Этап 2b (ADR 0025): подготовка к автономному запуску через systemd. Задачи S2b-01…S2b-09. |
+| 2026-09-17 | Добавлен ADR 0026 и задачи S2b-10…S2b-13 (чистка мёртвого кода). |

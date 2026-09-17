@@ -42,7 +42,7 @@ def setup_logging():
     root_logger.addHandler(fh)
 
 
-async def check_sources(app_config, secrets, state, exporter):
+async def check_sources(app_config, state, exporter):
     logger.info("=" * 60)
     logger.info("🔄 Проверка источников...")
 
@@ -136,7 +136,7 @@ async def main():
     try:
         while not stop_event.is_set():
             try:
-                await check_sources(app_config, secrets, state, exporter)
+                await check_sources(app_config, state, exporter)
             except Exception:
                 logger.exception("Непредвиденная ошибка в главном цикле")
 

@@ -1,0 +1,25 @@
+repos:
+  # Синхронизирует версии (rev) хуков с версиями в uv.lock
+  - repo: https://github.com/tsvikas/sync-with-uv
+    rev: v0.6.0
+    hooks:
+      - id: sync-with-uv
+
+  # Ruff (линтер + форматтер) — из официального репозитория
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8  # актуальная версия Ruff
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # Pytest — локальный хук, чтобы использовать uv и вашу конфигурацию
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest (uv)
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]  # только на push, не на каждый коммит

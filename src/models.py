@@ -2,17 +2,9 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class FieldMapping(BaseModel):
-    title: str = "title"
-    content: str = "excerpt"
-    link: str = "link"
-    published: str = "published"
-
-
 class MaxChannelConfig(BaseModel):
     enabled: bool = True
     disable_link_preview: bool = True
-    field_mapping: FieldMapping = Field(default_factory=FieldMapping)
     template: str = "📢 {title}\n\n{content}\n\n🔗 {link}"
 
 

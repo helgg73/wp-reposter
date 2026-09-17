@@ -1,7 +1,6 @@
 import httpx
 import pytest
 
-from src.models import SourceConfig
 from src.parser import WordPressParser
 
 

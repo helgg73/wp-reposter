@@ -12,9 +12,8 @@ logger = logging.getLogger(__name__)
 class MaxExporter:
     def __init__(self, config: MaxChannelConfig, bot_token: str, chat_id: str):
         self.config = config
-        self.bot_token = bot_token
         self.chat_id = chat_id
-        self.bot = Bot(token=self.bot_token) if self.config.enabled else None
+        self.bot = Bot(token=bot_token) if self.config.enabled else None
         self.http_client = httpx.AsyncClient(timeout=30.0)
 
     def format_post(self, entry: dict) -> str:

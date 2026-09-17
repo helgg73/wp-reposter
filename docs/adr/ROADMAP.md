@@ -2,8 +2,8 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-16
-- **Related:** ADR 0001–0025
+- **Updated:** 2026-09-17
+- **Related:** ADR 0001–0026
 
 ## Обзор
 
@@ -11,7 +11,7 @@
 |------|-------|--------|---------------------|
 | 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ✅ Done | uv, ruff, httpx, pydantic, maxapi, asyncio |
 | 2 | Фильтрация по категориям/тегам + unit-тесты | ✅ Done | pytest, respx |
-| 2b | Автономный запуск: systemd, логирование, отказоустойчивость | 🟡 В работе | systemd, logging, filelock, retry/backoff |
+| 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | 🟡 В работе | systemd, logging, filelock, retry/backoff, pre-commit |
 | 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
@@ -23,6 +23,8 @@
 3. **Каждая задача ссылается на ADR.** Если задача меняет архитектурное решение — сначала ADR, потом задача.
 4. **Критерий завершения этапа — измеримый.** Не «работает», а «`uv run pytest` проходит с покрытием ≥ 80%».
 5. **Не усложнять раньше времени.** Celery + Redis — только если APScheduler не справится (Этап 5). Фильтры per-channel — Этап 5, не Этап 3. `asyncio.gather` для каналов — только при 5+ каналах, до этого последовательный цикл.
+6. **Quality gates — автоматически.** Линтер, форматтер и тесты запускаются через pre-commit, а не вручную. Ручной запуск
+   легко забыть; хуки — нет.
 
 ## Связь с ADR
 
@@ -50,6 +52,8 @@ doc/adr/
 ├── 0023-server-side-post-filtering-by-tags.md
 ├── 0024-soft-handling-of-incorrect-post-dates-in-parser.md
 ├── 0025-autonomous-run-systemd.md
+├── 0026-remove-dead-code-and-simplify-signatures.md
+├── 0027-pre-commit-hooks-for-quality-gates.md
 ├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```

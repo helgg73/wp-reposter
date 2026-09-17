@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-10
-- **Updated:** 2026-09-16
+- **Updated:** 2026-09-17
 - **Related:** Все ADR проекта
 
 ## Context
@@ -18,6 +18,7 @@
 | 0001 | Project dump for LLM context | Accepted | 2026-09-15 |
 | 0002 | uv как менеджер пакетов | Accepted | 2026-09-15 |
 | 0003 | ruff для линтинга и форматирования | Accepted | 2026-09-15 |
+| 0027 | Pre-commit хуки как quality gates | Accepted | 2026-09-17 |
 
 ### Архитектура
 
@@ -64,6 +65,7 @@
 | ID | Название | Статус | Дата |
 |----|----------|--------|------|
 | 0025 | Подготовка к автономному запуску через systemd | In progress | 2026-09-16 |
+| 0026 | Удаление мёртвого кода и упрощение сигнатур | Accepted | 2026-09-17 |
 
 ### Этапы развития
 
@@ -84,6 +86,8 @@
 - **0018-stage-4-*.md** — детали Этапа 4.
 - **0019-stage-5-*.md** — детали Этапа 5.
 - **0025-autonomous-run-systemd.md** — детали Этапа 2b.
+- **0026-remove-dead-code-and-simplify-signatures.md** — чистка мёртвого кода.
+- **0027-pre-commit-hooks-for-quality-gates.md** — pre-commit хуки.
 
 ## Not to touch
 
