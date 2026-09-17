@@ -6,23 +6,6 @@ from src.parser import WordPressParser
 
 
 @pytest.fixture
-def source_config():
-    """Базовая конфигурация источника для тестов"""
-    return SourceConfig(
-        name="Test Source",
-        base_url="https://example.com",
-        api_path="/wp-json/wp/v2",
-        featured_image_size="medium",
-        max_pages=1,
-        per_page=10,
-        include_category_ids=[],
-        exclude_category_ids=[],
-        include_tag_ids=[],
-        exclude_tag_ids=[],
-    )
-
-
-@pytest.fixture
 def parser(source_config):
     """Парсер с базовой конфигураацией"""
     return WordPressParser(source_config)

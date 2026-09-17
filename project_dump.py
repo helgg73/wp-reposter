@@ -107,6 +107,7 @@ EXCLUDE_PATTERNS = {
     "*.pdf",
     # файлы, которые не нужны в дампе кода
     ".gitignore",
+    ".gitattributes",
     "project_dump.py",
     "*.md",
     # потенциальные секреты и учётные данные
