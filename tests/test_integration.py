@@ -1,11 +1,32 @@
 import httpx
 import pytest
 
-from src.models import SourceConfig
+from src.models import FieldSpec, WPRestSourceConfig
 from src.parser import WordPressParser
 
 # Публичный WP-сайт для интеграционных тестов (не содержит чувствительных данных)
 PUBLIC_WP_BASE_URL = "https://make.wordpress.org/playground"
+
+
+def _make_source() -> WPRestSourceConfig:
+    """Источник для интеграционных тестов с минимальным набором полей."""
+    return WPRestSourceConfig(
+        name="Public WP (integration test)",
+        base_url=PUBLIC_WP_BASE_URL,
+        api_path="/wp-json/wp/v2",
+        featured_image_size="medium",
+        max_pages=1,
+        per_page=5,
+        include_category_ids=[],
+        exclude_category_ids=[],
+        include_tag_ids=[],
+        exclude_tag_ids=[],
+        fields=[
+            FieldSpec(name="title.rendered", type="plain"),
+            FieldSpec(name="excerpt.rendered", type="html"),
+            FieldSpec(name="link", type="plain"),
+        ],
+    )
 
 
 @pytest.mark.integration
@@ -18,18 +39,7 @@ async def test_server_side_category_filtering():
 
     Запуск: uv run pytest tests/test_integration.py -v -m integration
     """
-    source = SourceConfig(
-        name="Public WP (integration test)",
-        base_url=PUBLIC_WP_BASE_URL,
-        api_path="/wp-json/wp/v2",
-        featured_image_size="medium",
-        max_pages=1,
-        per_page=5,
-        include_category_ids=[],
-        exclude_category_ids=[],
-        include_tag_ids=[],
-        exclude_tag_ids=[],
-    )
+    source = _make_source()
 
     # Получаем список категорий, чтобы найти валидный ID
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -58,7 +68,7 @@ async def test_server_side_category_filtering():
         print(f"✅ Найдено {len(posts)} постов в категории '{test_category_name}'")
 
         for post in posts[:3]:
-            print(f"   - {post['title'][:50]}...")
+            print(f"   - {post['title.rendered'][:50]}...")
 
     finally:
         await parser.close()
@@ -74,18 +84,7 @@ async def test_server_side_tag_filtering():
 
     Запуск: uv run pytest tests/test_integration.py -v -m integration
     """
-    source = SourceConfig(
-        name="Public WP (integration test)",
-        base_url=PUBLIC_WP_BASE_URL,
-        api_path="/wp-json/wp/v2",
-        featured_image_size="medium",
-        max_pages=1,
-        per_page=5,
-        include_category_ids=[],
-        exclude_category_ids=[],
-        include_tag_ids=[],
-        exclude_tag_ids=[],
-    )
+    source = _make_source()
 
     # Получаем список тегов
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -112,7 +111,7 @@ async def test_server_side_tag_filtering():
         print(f"✅ Найдено {len(posts)} постов с тегом '{test_tag_name}'")
 
         for post in posts[:3]:
-            print(f"   - {post['title'][:50]}...")
+            print(f"   - {post['title.rendered'][:50]}...")
 
     finally:
         await parser.close()

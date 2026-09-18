@@ -2,7 +2,7 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-17
+- **Updated:** 2026-09-18
 
 Плоский список задач. Формат ID: `S<этап>-<номер>`.
 
@@ -14,7 +14,8 @@
 |------|------|--------|
 | 1 | — (ADR 0002–0015) | ✅ Done |
 | 2 | [0016-stage-2-filtering-and-tests.md](0016-stage-2-filtering-and-tests.md) | ✅ Done |
-| 2b | [0025-autonomous-run-systemd.md](0025-autonomous-run-systemd.md) | 🟡 In Progress |
+| 2b | [0025-autonomous-run-systemd.md](0025-autonomous-run-systemd.md) | ✅ Done |
+| 2c | [0028-content-transform-and-post-composition.md](0028-content-transform-and-post-composition.md) | 🟡 In Progress |
 | 3 | [0017-stage-3-vk-integration.md](0017-stage-3-vk-integration.md) | ⚪ Planned |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
 | 5 | [0019-stage-5-advanced-ui.md](0019-stage-5-advanced-ui.md) | ⚪ Planned |
@@ -55,8 +56,11 @@
 4. S2-02…S2-08 — покрытие тестами (✅ выполнено).
 5. S2-12 — оптимизация `_save()` (✅ выполнено).
 
-## Этап 2b (In Progress) — [0025](0025-autonomous-run-systemd.md)
-Подготовка к автономному запуску на выделенном Linux-хосте через systemd.
+**Примечание:** Задача S2-04 (тесты на `_clean_text()`) устарела в связи с ADR 0028 — `_clean_text` удаляется, заменяется на обработчик `html` в `src/content_transform.py`. Новые тесты — в `tests/test_content_transform.py` (S2c-06).
+
+## Этап 2b (завершён) — [0025](0025-autonomous-run-systemd.md)
+Подготовка к автономному запуску на выделенном Linux-хосте через systemd,
+чистка мёртвого кода, внедрение quality gates.
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
@@ -66,13 +70,13 @@
 | 4 | S2b-04 | `try/except` на уровне источника и цикла в `main.py` | 0025 | ✅ Done |
 | 5 | S2b-05 | `filelock` на `data/state.lock` в `StateManager` | 0025 | ✅ Done |
 | 6 | S2b-06 | Graceful shutdown: SIGTERM/SIGINT, `KeyboardInterrupt` | 0025 | ✅ Done |
-| 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M` | 0025 |  In Progress |
+| 7 | S2b-07 | systemd unit `wp-reposter.service`, `MemoryMax=256M` | 0025 | ✅ Done |
 | 8 | S2b-08 | Порядок «отправить → state.mark_processed → flush» | 0025 | ✅ Done |
-| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown | 0025 |  ✅ Done |
-| 10 | S2b-10 | Удалить мёртвый код: `FieldMapping` и `field_mapping` | 0026 | Todo |
-| 11 | S2b-11 | Убрать параметр `secrets` из `check_sources()` | 0026 | Todo |
-| 12 | S2b-12 | Не сохранять `self.bot_token` в `MaxExporter` | 0026 | Todo |
-| 13 | S2b-13 | Прогнать `ruff` и `pytest` после чисток | 0026 | Todo |
+| 9 | S2b-09 | Тесты: file lock, retry, graceful shutdown | 0025 | ✅ Done |
+| 10 | S2b-10 | Удалить мёртвый код: `FieldMapping` и `field_mapping` | 0026 | ✅ Done |
+| 11 | S2b-11 | Убрать параметр `secrets` из `check_sources()` | 0026 | ✅ Done |
+| 12 | S2b-12 | Не сохранять `self.bot_token` в `MaxExporter` | 0026 | ✅ Done |
+| 13 | S2b-13 | Прогнать `ruff` и `pytest` после чисток | 0026 | ✅ Done |
 | 14 | S2b-14 | Добавить `pre-commit` в dev-зависимости | 0027 | ✅ Done |
 | 15 | S2b-15 | Создать `.pre-commit-config.yaml` (sync-with-uv, ruff, ruff format) | 0027 | ✅ Done |
 | 16 | S2b-16 | Установить хуки: pre-commit + pre-push | 0027 | ✅ Done |
@@ -85,14 +89,36 @@
 2. S2b-02 — логирование: без него не видно, что происходит при retry и ошибках.
 3. S2b-03, S2b-04 — отказоустойчивость.
 4. S2b-05, S2b-06 — lock и shutdown (нужны для systemd).
-5. S2b-07 — unit-файл.
+5. S2b-07 — unit-файл (проверен на сервере).
 6. S2b-08 — порядок записи state (можно параллельно с S2b-03…S2b-06).
 7. S2b-09 — тесты на всё новое.
-8. S2b-10…S2b-13 — чистка мёртвого кода по ADR 0026 (не блокирует
-   остальные задачи, можно выполнять параллельно).
-9. S2b-14…S2b-19 — внедрение pre-commit как quality gate по ADR 0027.
-   Выполнено после закрытия S2b-10…S2b-13 (чистка мёртвого кода),
-   чтобы не плодить лишние коммиты.
+8. S2b-10…S2b-13 — чистка мёртвого кода по ADR 0026 (выполнено).
+9. S2b-14…S2b-19 — внедрение pre-commit как quality gate по ADR 0027 (выполнено).
+
+## Этап 2c (In progress) — ADR 0028
+Композиция поста из полей источника и модуль трансформаций.
+
+| # | ID | Задача | ADR | Статус |
+|---|----|--------|-----|--------|
+| 1 | S2c-01 | Создать `src/content_transform.py` (обработчики `html`, `plain`) | 0028 | Todo |
+| 2 | S2c-02 | Создать `src/validation.py` + CLI-утилита `python -m src.validation` | 0028 | Todo |
+| 3 | S2c-03 | Глобальный список полей в `AppConfig` + шаблон канала из блоков | 0028 | Todo |
+| 4 | S2c-04 | Удалить `_clean_text`, применить обработчики в парсере и экспортере | 0028 | Todo |
+| 5 | S2c-05 | Локальная валидация при старте, композиция с пропуском пустых полей | 0028 | Todo |
+| 6 | S2c-06 | Тесты `test_content_transform.py`, `test_validation.py`, обновить существующие | 0028 | Todo |
+
+**Логика порядка:**
+1. S2c-01 — сначала модуль трансформаций, без него нечего подключать.
+2. S2c-02 — валидация, чтобы ловить опечатки в конфиге.
+3. S2c-03 — глобальный список полей и шаблон канала.
+4. S2c-04 — переключить парсер и экспортер на новую схему.
+5. S2c-05 — композиция и валидация при старте.
+6. S2c-06 — тесты на всё новое, обновление существующих.
+
+**Примечание:** Этап выделен из Этапа 2b, потому что меняет архитектуру
+(как формируется пост), а не эксплуатацию. Критерий завершения —
+пост собирается из полей по конфигу, `_clean_text` удалён,
+валидация работает.
 
 ## Этап 3 (Planned) — [0017](0017-stage-3-vk-integration.md)
 
@@ -141,4 +167,9 @@
 | 2026-09-16 | Добавлены S2-09, S2-10, S2-11, S2-12. S2-09, S2-10, S2-11 отмечены как Done. Исправлены ссылки на ADR 0022 (VK API). S2-04 переименован в `_clean_text()`. Этап 1 переведён в статус Done. |
 | 2026-09-16 | Выполнены S2-01 – S2-08. Этап 2 переведён в Accepted. |
 | 2026-09-16 | Добавлен Этап 2b (ADR 0025): подготовка к автономному запуску через systemd. Задачи S2b-01…S2b-09. |
-| 2026-09-17 | Добавлен ADR 0026 и задачи S2b-10…S2b-13 (чистка мёртвого кода). |
+| 2026-09-17 | Добавлен ADR 0026 и задачи S2b-10…S2b-13 (чистка мёртвого кода). S2b-10…S2b-13 отмечены как Done. |
+| 2026-09-17 | Добавлен ADR 0027 и задачи S2b-14…S2b-19 (pre-commit). S2b-14…S2b-19 отмечены как Done. |
+| 2026-09-18 | Добавлен ADR 0028 (модуль трансформаций и композиция поста). |
+| 2026-09-18 | S2b-07 отмечен как Done — systemd unit проверен на сервере. Этап 2b переведён в статус Done. |
+| 2026-09-18 | Задачи по ADR 0028 выделены в отдельный Этап 2c (S2c-01…S2c-06) — меняют архитектуру, а не эксплуатацию. |
+| 2026-09-18 | Добавлено примечание об устаревании S2-04 в связи с ADR 0028. |Этап переведён в In Progress. |

@@ -16,14 +16,23 @@ class MaxExporter:
         self.bot = Bot(token=bot_token) if self.config.enabled else None
         self.http_client = httpx.AsyncClient(timeout=30.0)
 
-    def format_post(self, entry: dict) -> str:
-        data = {
-            "title": entry["title"],
-            "content": entry["content"],
-            "link": entry["link"],
-            "published": entry.get("published", ""),
-        }
-        return self.config.template.format(**data)
+    def format_post(self, entry: dict) -> str | None:
+        """Собирает текст поста из блоков шаблона.
+
+        Пропускает блоки с пустыми полями. Если все блоки пусты —
+        возвращает None: постить нечего.
+        """
+        parts: list[str] = []
+        for block in self.config.template:
+            value = entry.get(block.field, "")
+            if not value:
+                continue
+            # Обрезка по max_length — отдельная задача, пока не реализована.
+            parts.append(f"{block.prefix}{value}{block.postfix}")
+
+        if not parts:
+            return None
+        return "".join(parts)
 
     async def _download_image(self, image_url: str) -> bytes | None:
         try:
@@ -39,6 +48,10 @@ class MaxExporter:
             return None
 
         text = self.format_post(entry)
+        if text is None:
+            logger.warning(f"⚠️  Пост {entry.get('id', '?')} пропущен: все поля шаблона пусты.")
+            return None
+
         try:
             attachments = []
             if image_url:
@@ -64,9 +77,9 @@ class MaxExporter:
                 message_id = str(message_id)
 
             if message_id:
-                logger.info(f"✅ Отправлено в MAX (mid={message_id}): {entry['title'][:50]}...")
+                logger.info(f"✅ Отправлено в MAX (mid={message_id}): {text[:50]}...")
             else:
-                logger.warning(f"⚠️  Отправлено, но ID не получен: {entry['title'][:50]}...")
+                logger.warning(f"⚠️  Отправлено, но ID не получен: {text[:50]}...")
             return message_id
 
         except Exception as e:

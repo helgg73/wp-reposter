@@ -1,17 +1,16 @@
 import asyncio
-import html
 import logging
-import re
 
 import httpx
 
-from .models import SourceConfig
+from .content_transform import get_transformer
+from .models import WPRestSourceConfig
 
 logger = logging.getLogger(__name__)
 
 
 class WordPressParser:
-    def __init__(self, source: SourceConfig):
+    def __init__(self, source: WPRestSourceConfig):
         self.source = source
         self.client = httpx.AsyncClient(timeout=30.0)
         self.base_url = source.base_url.rstrip("/")
@@ -102,24 +101,16 @@ class WordPressParser:
                 return size_data["source_url"]
         return None
 
-    def _clean_text(self, html_text: str) -> str:
-        text = html.unescape(html_text)
-        text = re.sub(r"<[^>]+>", "", text)
-        text = re.sub(r"\s*\[…\]\s*$", "", text)
-        text = re.sub(r"\s*…\s*$", "", text)
-        text = " ".join(text.split())
-        if text and text[-1] not in (".", "!", "?"):
-            text += "."
-        return text
-
     def _format_post(self, post: dict) -> dict | None:
+        """Извлекает поля из поста согласно source.fields.
+
+        Падает, если поле из fields отсутствует в ответе API:
+        это аномалия источника, а не норма.
+        """
         if "guid" not in post:
             logger.warning(f"⚠️  Пропущен пост без 'guid': {post}")
             return None
         guid = str(post["guid"])
-        if "title" not in post or "rendered" not in post.get("title", {}):
-            logger.warning(f"⚠️  Пропущен пост {guid} без 'title.rendered'")
-            return None
         if "link" not in post:
             logger.warning(f"⚠️  Пропущен пост {guid} без 'link'")
             return None
@@ -127,18 +118,41 @@ class WordPressParser:
             logger.warning(f"⚠️  Пропущен пост {guid} без 'date' (null или отсутствует)")
             return None
 
-        excerpt = post.get("excerpt", {}).get("rendered", "")
-        content = post.get("content", {}).get("rendered", "")
-        raw_text = excerpt if excerpt else content
-
-        return {
+        formatted: dict = {
             "id": guid,
             "link": post["link"],
-            "title": post["title"]["rendered"],
-            "content": self._clean_text(raw_text),
             "published": post["date"],
             "_image_url": self._extract_image(post) if self.source.featured_image_size else None,
         }
+
+        for field in self.source.fields:
+            if not self._path_exists(post, field.name):
+                raise ValueError(
+                    f"Источник '{self.source.name}': поле '{field.name}' "
+                    f"отсутствует в посте {guid}. Источник сломался или "
+                    f"конфигурация полей неверна."
+                )
+            raw_value = self._get_by_path(post, field.name)
+            transformer = get_transformer(field.type)
+            formatted[field.name] = transformer(raw_value)
+
+        return formatted
+
+    @staticmethod
+    def _path_exists(data: dict, path: str) -> bool:
+        current = data
+        for part in path.split("."):
+            if not isinstance(current, dict) or part not in current:
+                return False
+            current = current[part]
+        return True
+
+    @staticmethod
+    def _get_by_path(data: dict, path: str):
+        current = data
+        for part in path.split("."):
+            current = current[part]
+        return current
 
     async def close(self):
         await self.client.aclose()

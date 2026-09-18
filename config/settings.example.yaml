@@ -17,9 +17,34 @@ sources:
     exclude_category_ids: []
     include_tag_ids: []
     exclude_tag_ids: []
+    # Поля, которые источник отдаёт в ответе API.
+    # name — путь через точку для вложенных полей.
+    # type — тип для выбора обработчика (см. content_transform).
+    fields:
+      - name: title.rendered
+        type: plain
+      - name: excerpt.rendered
+        type: html
+      - name: link
+        type: plain
 
 export:
+  # Обязательная секция. Без неё сервис не стартует:
+  # постить некуда.
   max_channel:
     enabled: true
     disable_link_preview: true
-    template: "{title}\n\n{content}\n\n{link}"
+    # Обязательный шаблон поста: список блоков.
+    template:
+      - prefix: ""
+        field: title.rendered
+        max_length: 55
+        postfix: "\n\n"
+      - prefix: ""
+        field: excerpt.rendered
+        max_length: 0
+        postfix: "\n\n"
+      - prefix: ""
+        field: link
+        max_length: 0
+        postfix: ""

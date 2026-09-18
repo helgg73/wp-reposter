@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-10
-- **Updated:** 2026-09-17
+- **Updated:** 2026-09-18
 - **Related:** Все ADR проекта
 
 ## Context
@@ -59,6 +59,7 @@
 | ID | Название | Статус | Дата |
 |----|----------|--------|------|
 | 0024 | Мягкая обработка некорректных дат постов в парсере | Accepted | 2026-09-16 |
+| 0028 | Модуль трансформаций и композиция поста | Accepted | 2026-09-18 |
 
 ### Эксплуатация и автономный запуск
 
@@ -88,6 +89,7 @@
 - **0025-autonomous-run-systemd.md** — детали Этапа 2b.
 - **0026-remove-dead-code-and-simplify-signatures.md** — чистка мёртвого кода.
 - **0027-pre-commit-hooks-for-quality-gates.md** — pre-commit хуки.
+- **0028-content-transform-and-post-composition.md** — модуль трансформаций и композиция поста.
 
 ## Not to touch
 

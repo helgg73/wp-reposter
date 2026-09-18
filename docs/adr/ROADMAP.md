@@ -2,8 +2,8 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-17
-- **Related:** ADR 0001–0026
+- **Updated:** 2026-09-18
+- **Related:** ADR 0001–0028
 
 ## Обзор
 
@@ -11,7 +11,7 @@
 |------|-------|--------|---------------------|
 | 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ✅ Done | uv, ruff, httpx, pydantic, maxapi, asyncio |
 | 2 | Фильтрация по категориям/тегам + unit-тесты | ✅ Done | pytest, respx |
-| 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | 🟡 В работе | systemd, logging, filelock, retry/backoff, pre-commit |
+| 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates, композиция поста | 🟡 В работе | systemd, logging, filelock, retry/backoff, pre-commit |
 | 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
@@ -54,6 +54,7 @@ doc/adr/
 ├── 0025-autonomous-run-systemd.md
 ├── 0026-remove-dead-code-and-simplify-signatures.md
 ├── 0027-pre-commit-hooks-for-quality-gates.md
+├── 0028-content-transform-and-post-composition.md
 ├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```
