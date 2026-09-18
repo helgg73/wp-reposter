@@ -12,6 +12,7 @@ from .config import load_settings
 from .exporter import MaxExporter
 from .parser import WordPressParser
 from .state import StateManager
+from .validation import validate_or_exit
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,8 @@ async def main():
     app_config, secrets = load_settings()
     logger.info(f"📂 Загружено {len(app_config.sources)} источников")
     logger.info(f"⚙️  Лимит новых постов за проход: {app_config.max_new_posts_per_run}")
+
+    validate_or_exit(app_config)
 
     # Безопасная инициализация StateManager с обработкой блокировки
     try:

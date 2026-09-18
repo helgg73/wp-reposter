@@ -4,10 +4,9 @@
 
 - **Локальные** — не требуют сети, выполняются при старте
   основного цикла. Проверяют соответствие шаблонов каналов
-  глобальному списку полей и наличие обработчиков
-  в `content_transform`.
+  полям источников и наличие обработчиков в `content_transform`.
 - **Сетевые** — тестовый запрос к источнику. Проверяют, что
-  все поля из глобального списка реально присутствуют
+  все поля из `fields` источника реально присутствуют
   в ответе API. Выполняются вручную через CLI, чтобы временная
   недоступность WP не блокировала запуск сервиса.
 
@@ -15,13 +14,16 @@ CLI: `python -m src.validation [--source NAME]`.
 """
 
 import argparse
+import logging
 import sys
 
 import httpx
 
 from .config import load_settings
 from .content_transform import get_transformer
-from .models import AppConfig, SourceConfig
+from .models import AppConfig, WPRestSourceConfig
+
+logger = logging.getLogger(__name__)
 
 # Коды выхода CLI
 EXIT_OK = 0
@@ -34,37 +36,64 @@ def validate_local(config: AppConfig) -> list[str]:
     """Локальные проверки без сети.
 
     Возвращает список ошибок (пустой = всё ок).
+
+    Проверяет:
+    - у каждого источника непустой `fields`;
+    - для всех типов из `fields` есть обработчики в `content_transform`;
+    - у каждого канала непустой `template`;
+    - все поля из `template` присутствуют хотя бы у одного
+      активного источника;
+    - `max_length` в блоках не отрицательный.
     """
     errors: list[str] = []
 
-    declared_fields = {field.name for field in config.fields}
+    # 1. Проверки источников
+    all_source_fields: set[str] = set()
+    for source in config.sources:
+        if not source.fields:
+            errors.append(
+                f"Источник '{source.name}': список полей пуст. "
+                f"Источник должен объявлять хотя бы одно поле."
+            )
+            continue
+        for field in source.fields:
+            all_source_fields.add(field.name)
+            try:
+                get_transformer(field.type)
+            except ValueError as e:
+                errors.append(f"Источник '{source.name}', поле '{field.name}': {e}")
 
-    # 1. Все поля из шаблонов каналов есть в глобальном списке
+    # 2. Проверки каналов
     for channel_name, channel in _iter_channels(config):
+        if not channel.template:
+            errors.append(
+                f"Канал '{channel_name}': шаблон пуст. Шаблон должен содержать хотя бы один блок."
+            )
+            continue
+
         for block in channel.template:
-            if block.field not in declared_fields:
+            if block.field not in all_source_fields:
                 errors.append(
                     f"Канал '{channel_name}': поле '{block.field}' "
-                    f"из шаблона отсутствует в глобальном списке полей. "
-                    f"Доступные поля: {sorted(declared_fields)}"
+                    f"из шаблона отсутствует у всех активных источников. "
+                    f"Доступные поля: {sorted(all_source_fields)}"
                 )
-
-    # 2. Для всех типов есть обработчики
-    for field in config.fields:
-        try:
-            get_transformer(field.type)
-        except ValueError as e:
-            errors.append(f"Поле '{field.name}': {e}")
+            if block.max_length < 0:
+                errors.append(
+                    f"Канал '{channel_name}', блок '{block.field}': "
+                    f"max_length не может быть отрицательным "
+                    f"(получено {block.max_length})."
+                )
 
     return errors
 
 
-def validate_source(config: AppConfig, source: SourceConfig) -> list[str]:
+def validate_source(config: AppConfig, source: WPRestSourceConfig) -> list[str]:
     """Проверка полей одного источника через тестовый запрос.
 
     Возвращает список ошибок. Различает сетевые ошибки
     (не удалось получить ответ) и логические (поле отсутствует)
-    по тексту сообщения — CLI использует это для выбора кода выхода.
+    по префиксу сообщения — CLI использует это для выбора кода выхода.
     """
     errors: list[str] = []
 
@@ -95,7 +124,7 @@ def validate_source(config: AppConfig, source: SourceConfig) -> list[str]:
 
     post = posts[0]
 
-    for field in config.fields:
+    for field in source.fields:
         if not _path_exists(post, field.name):
             errors.append(
                 f"[FIELDS] Источник '{source.name}': поле '{field.name}' отсутствует в ответе API."
@@ -134,6 +163,20 @@ def _classify_errors(errors: list[str]) -> int:
     if any(e.startswith("[FIELDS]") for e in errors):
         return EXIT_FIELDS_ERROR
     return EXIT_CONFIG_ERROR
+
+
+def validate_or_exit(config: AppConfig) -> None:
+    """Локальная валидация с падением при ошибке.
+
+    Используется при старте сервиса. Логирует все ошибки
+    и вызывает sys.exit(1), если конфиг невалиден.
+    """
+    errors = validate_local(config)
+    if errors:
+        for error in errors:
+            logger.error(f"❌ Ошибка конфигурации: {error}")
+        logger.error("💥 Запуск отменён: конфигурация не прошла валидацию.")
+        sys.exit(1)
 
 
 def main(argv: list[str] | None = None) -> int:
