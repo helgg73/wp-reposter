@@ -4,6 +4,7 @@ import httpx
 from maxapi import Bot
 from maxapi.types import InputMediaBuffer
 
+from .content_transform import truncate
 from .models import MaxChannelConfig
 
 logger = logging.getLogger(__name__)
@@ -21,13 +22,19 @@ class MaxExporter:
 
         Пропускает блоки с пустыми полями. Если все блоки пусты —
         возвращает None: постить нечего.
+
+        Обрезка по max_length (ADR 0029) применяется после
+        трансформации поля и до добавления префикса/постфикса.
+        max_length <= 0 — без обрезки.
         """
         parts: list[str] = []
         for block in self.config.template:
             value = entry.get(block.field, "")
             if not value:
                 continue
-            # Обрезка по max_length — отдельная задача, пока не реализована.
+            value = truncate(value, block.max_length)
+            if not value:
+                continue
             parts.append(f"{block.prefix}{value}{block.postfix}")
 
         if not parts:

@@ -2,8 +2,8 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-18
-- **Related:** ADR 0001–0028
+- **Updated:** 2026-09-19
+- **Related:** ADR 0001–0029
 
 ## Обзор
 
@@ -13,9 +13,15 @@
 | 2 | Фильтрация по категориям/тегам + unit-тесты | ✅ Done | pytest, respx |
 | 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | ✅ Done | systemd, logging, filelock, retry/backoff, pre-commit |
 | 2c | Композиция поста и модуль трансформаций | ✅ Done | content_transform, validation, WPRestSourceConfig |
+| 2d | Обрезка текста по `max_length` | ✅ Done | content_transform |
 | 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
+
+## Технический долг
+
+Задачи, которые знаем и сознательно отложили. Полный список —
+в [BACKLOG.md](BACKLOG.md), раздел «Технический долг».
 
 ## Принципы
 
@@ -55,15 +61,10 @@ doc/adr/
 ├── 0026-remove-dead-code-and-simplify-signatures.md
 ├── 0027-pre-commit-hooks-for-quality-gates.md
 ├── 0028-content-transform-and-post-composition.md
+├── 0029-truncate-by-max-length.md
 ├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```
-
-## Отложено
-
-- **Обрезка по `max_length`** — поле в модели и конфиге есть,
-  парсится и валидируется, но не применяется. Реализация —
-  отдельный ADR (номер присваивается при создании).
 
 ## Not to touch
 

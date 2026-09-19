@@ -43,7 +43,7 @@ export:
       - prefix: ""
         field: excerpt.rendered
         max_length: 0
-        postfix: "\n\n"
+        postfix: "…\n\n"
       - prefix: ""
         field: link
         max_length: 0

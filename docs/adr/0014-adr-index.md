@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-10
-- **Updated:** 2026-09-18
+- **Updated:** 2026-09-19
 - **Related:** Все ADR проекта
 
 ## Context
@@ -60,6 +60,7 @@
 |----|----------|--------|------|
 | 0024 | Мягкая обработка некорректных дат постов в парсере | Accepted | 2026-09-16 |
 | 0028 | Модуль трансформаций и композиция поста | Accepted | 2026-09-18 |
+| 0029 | Обрезка текста по лимиту `max_length` | Accepted | 2026-09-19 |
 
 ### Эксплуатация и автономный запуск
 
@@ -90,6 +91,7 @@
 - **0026-remove-dead-code-and-simplify-signatures.md** — чистка мёртвого кода.
 - **0027-pre-commit-hooks-for-quality-gates.md** — pre-commit хуки.
 - **0028-content-transform-and-post-composition.md** — модуль трансформаций и композиция поста.
+- **0029-truncate-by-max-length.md** — обрезка текста по `max_length`.
 
 ## Not to touch
 

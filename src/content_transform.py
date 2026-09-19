@@ -77,3 +77,46 @@ def transform_html(text: str) -> str:
     text = "\n\n".join(processed_paragraphs)
 
     return text
+
+
+def truncate(text: str, max_length: int) -> str:
+    """Обрезает текст по лимиту, сохраняя целые слова.
+
+    Алгоритм (ADR 0029):
+      1. Если max_length <= 0 — текст без изменений.
+      2. Если текст короче лимита — без изменений.
+      3. Разбиваем на абзацы по \\n\\n, идём слева направо.
+      4. Внутри абзаца — по словам. Перед каждым словом
+         разделитель: пробел внутри абзаца, \\n\\n на границе.
+      5. Если добавление слова превышает лимит — стоп.
+      6. Первое слово не влезает — пустая строка.
+      7. Висящий \\n\\n в конце не остаётся.
+      8. Многоточие не добавляется.
+
+    Мягкая обрезка: результат может быть короче лимита
+    на длину последнего не влезшего слова.
+    """
+    if max_length <= 0:
+        return text
+    if len(text) <= max_length:
+        return text
+
+    result = ""
+    paragraphs = text.split("\n\n")
+
+    for i, paragraph in enumerate(paragraphs):
+        words = paragraph.split()
+        for j, word in enumerate(words):
+            if not result:
+                sep = ""
+            elif j == 0 and i > 0:
+                sep = "\n\n"
+            else:
+                sep = " "
+
+            candidate = result + sep + word
+            if len(candidate) > max_length:
+                return result
+            result = candidate
+
+    return result
