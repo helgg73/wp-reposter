@@ -5,6 +5,8 @@
 
 check_interval: 300
 max_new_posts_per_run: 5
+max_posts_per_fetch: 100
+min_interval_between_messages: 0.5
 
 sources:
   - name: "Мой источник"
@@ -13,13 +15,6 @@ sources:
     featured_image_size: "medium"
     max_pages: 3
     per_page: 10
-    include_category_ids: []
-    exclude_category_ids: []
-    include_tag_ids: []
-    exclude_tag_ids: []
-    # Поля, которые источник отдаёт в ответе API.
-    # name — путь через точку для вложенных полей.
-    # type — тип для выбора обработчика (см. content_transform).
     fields:
       - name: title.rendered
         type: plain
@@ -28,23 +23,38 @@ sources:
       - name: link
         type: plain
 
-export:
-  # Обязательная секция. Без неё сервис не стартует:
-  # постить некуда.
-  max_channel:
+channels:
+  # Имя канала: только [a-z0-9_], начинается с буквы.
+  # Используется в путях файловой системы и в именах
+  # переменных окружения (VK_ACCESS_TOKEN_<NAME>).
+  - type: max
+    name: max_main
     enabled: true
+    chat_id: "-1001234567890"
     disable_link_preview: true
-    # Обязательный шаблон поста: список блоков.
-    template:
-      - prefix: ""
-        field: title.rendered
-        max_length: 55
-        postfix: "\n\n"
-      - prefix: ""
-        field: excerpt.rendered
-        max_length: 0
-        postfix: "…\n\n"
-      - prefix: ""
-        field: link
-        max_length: 0
-        postfix: ""
+
+reposters:
+  # Имя репостера: только [a-z0-9_], начинается с буквы.
+  # Используется в пути data/state/<reposter>/.
+  - name: "og_to_max"
+    source: "Мой источник"
+    filter:
+      include_category_ids: []
+      exclude_category_ids: []
+      include_tag_ids: []
+      exclude_tag_ids: []
+    channels:
+      - channel: max_main
+        template:
+          - prefix: "📢 "
+            field: title.rendered
+            max_length: 55
+            postfix: "\n\n"
+          - prefix: ""
+            field: excerpt.rendered
+            max_length: 0
+            postfix: "\n\n"
+          - prefix: "🔗 "
+            field: link
+            max_length: 0
+            postfix: ""
