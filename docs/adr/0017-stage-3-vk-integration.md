@@ -1,8 +1,14 @@
 # ADR 0017: Этап 3 — Интеграция с ВКонтакте
 
-- **Status:** Planned
+- **Status:** Superseded by ADR 0030
 - **Date:** 2026-09-15
 - **Related:** ADR 0005 (asyncio), ADR 0008 (maxapi), ADR 0009 (state), ADR 0011 (disable_link_preview), ADR 0012 (модели), ADR 0016 (Этап 2), ADR 0022 (VK API)
+
+> **Внимание:** этот ADR устарел. Написан до ADR 0030, когда модель
+> была плоской (`ExportConfig` с `max_channel` и `vk_channel`,
+> `template: str`). Актуальные решения — в ADR 0030 (мультиканальность
+> и модель репостера) и ADR 0022 (VK API). Этот файл сохранён
+> для истории.
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-21
+- **Updated:** 2026-09-22
 
 Плоский список задач. Формат ID: `S<этап>-<номер>`.
 
@@ -17,7 +17,8 @@
 | 2b | [0025-autonomous-run-systemd.md](0025-autonomous-run-systemd.md) | ✅ Done |
 | 2c | [0028-content-transform-and-post-composition.md](0028-content-transform-and-post-composition.md) | ✅ Done |
 | 2d | [0029-truncate-by-max-length.md](0029-truncate-by-max-length.md) | ✅ Done |
-| 3 | [0017-stage-3-vk-integration.md](0017-stage-3-vk-integration.md) | 🟡 In Progress |
+| 3a | [0030-multichannel-and-reposter-model.md](0030-multichannel-and-reposter-model.md) | 🟡 In Progress |
+| 3b | [0022-adr-vk-api.md](0022-adr-vk-api.md) | ⚪ Planned |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
 | 5 | [0019-stage-5-advanced-ui.md](0019-stage-5-advanced-ui.md) | ⚪ Planned |
 
@@ -39,28 +40,62 @@
 с ADR 0028 — `_clean_text` удалён, заменён на обработчик `html`
 в `src/content_transform.py`. Новые тесты — в `tests/test_content_transform.py`.
 
-## Этап 3 (In Progress) — [0017](0017-stage-3-vk-integration.md)
+## Этап 3a (In Progress) — [0030](0030-multichannel-and-reposter-model.md)
+Мультиканальность и модель репостера.
 
-| ID | Задача | ADR | Статус |
-|----|--------|-----|--------|
-| S3-01 | Изучить VK API → ADR 0022 | — | Todo |
-| S3-02 | `VkChannelConfig` в `models.py` | 0012 | Todo |
-| S3-03 | Секреты ВК в `Secrets` | 0006 | Todo |
-| S3-04 | `src/exporters/vk_exporter.py` | 0005, 0022 | Todo |
-| S3-05 | Мультиканальность в `main.py` (последовательный цикл) | 0008, 0017 | Todo |
-| S3-06 | `StateManager` для мультиканальности | 0009 | Todo |
-| S3-07 | Тесты на `VkExporter` | 0017 | Todo |
+| # | ID | Задача | ADR | Статус |
+|---|----|--------|-----|--------|
+| 1 | S3a-01 | Модели: `ReposterConfig`, `ReposterChannelConfig`, `FilterConfig` | 0030 | Todo |
+| 2 | S3a-02 | `WPRestSourceConfig` без фильтров | 0030 | Todo |
+| 3 | S3a-03 | `MaxChannelConfig` без `template`, с `chat_id`, `type` | 0030 | Todo |
+| 4 | S3a-04 | Discriminated union `ChannelConfig` (Pydantic v2) | 0030 | Todo |
+| 5 | S3a-05 | Валидация `name` через `Field(pattern=...)` для каналов и репостеров | 0030 | Todo |
+| 6 | S3a-06 | `AppConfig`: `sources`, `channels`, `reposters`, `max_posts_per_fetch`, `min_interval_between_messages` | 0030 | Todo |
+| 7 | S3a-07 | `StateManager`: per-channel файлы (`data/state/<reposter>/<channel>.json`) | 0030 | Todo |
+| 8 | S3a-08 | `StateManager`: lock на репостер (`data/state/<reposter>.lock`) | 0030 | Todo |
+| 9 | S3a-09 | `cutoff_date` per-channel | 0030 | Todo |
+| 10 | S3a-10 | `fetch_posts` принимает `max_posts`, пагинация останавливается при лимите | 0030 | Todo |
+| 11 | S3a-11 | `main.py`: цикл по репостерам, внутри — по каналам | 0030 | Todo |
+| 12 | S3a-12 | Пауза `min_interval_between_messages` между отправками | 0030 | Todo |
+| 13 | S3a-13 | `config/settings.example.yaml` — новая структура | 0030 | Todo |
+| 14 | S3a-14 | Тесты моделей, `StateManager`, `main.py` | 0030 | Todo |
+| 15 | S3a-15 | Ручная проверка: пост уходит в MAX, конфиг в новой структуре | 0030 | Todo |
 
 **Логика порядка:**
-1. S3-01 — сначала изучить VK API, актуализировать ADR 0022.
-2. S3-02, S3-03 — модели и секреты.
-3. S3-04 — экспортер VK.
-4. S3-05, S3-06 — мультиканальность в `main.py` и `StateManager`.
-5. S3-07 — тесты.
+1. S3a-01…S3a-06 — модели и конфиг. Без них ничего не соберётся.
+2. S3a-07…S3a-09 — `StateManager` per-channel (нужно для отправки).
+3. S3a-10 — `fetch_posts` с `max_posts`.
+4. S3a-11, S3a-12 — `main.py`: цикл и паузы.
+5. S3a-13 — пример конфига.
+6. S3a-14 — тесты.
+7. S3a-15 — ручная проверка.
 
-**Отложено из Этапа 3:**
-- Фильтры per-channel (`vk_include_category_ids`) → S5-02.
+**Отложено из Этапа 3a:**
 - `asyncio.gather` для каналов → S5-04 (триггер: 5+ каналов).
+- Фильтры per-channel → S5-02.
+- Миграция в БД → Этап 4.
+
+## Этап 3b (Planned) — [0022](0022-adr-vk-api.md)
+Интеграция с ВКонтакте.
+
+| # | ID | Задача | ADR | Статус |
+|---|----|--------|-----|--------|
+| 1 | S3b-01 | ADR 0022: VK API, `vkbottle`, токен сообщества |  0030 | Todo |
+| 2 | S3b-02 | `VkChannelConfig` в `models.py` | 0030, 0022 | Todo |
+| 3 | S3b-03 | Секреты ВК в `Secrets` (`VK_ACCESS_TOKEN_<NAME>`) | 0006, 0030 | Todo |
+| 4 | S3b-04 | `src/exporters/vk_exporter.py` (текст) | 0005, 0022 | Todo |
+| 5 | S3b-05 | Тесты на `VkExporter` | 0022 | Todo |
+| 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | Todo |
+
+**Логика порядка:**
+1. S3b-01 — ADR 0022 до кода.
+2. S3b-02, S3b-03 — модель и секреты.
+3. S3b-04 — экспортер (текст).
+4. S3b-05, S3b-06 — тесты и ручная проверка.
+
+**Отложено из Этапа 3b:**
+- Фото в VK → отдельный ADR (раздел «Этап B» в ADR 0022).
+- Мультипостинг в VK (отложенные посты, отложенная публикация) → S5.
 
 ## Этап 4 (Planned) — [0018](0018-stage-4-web-docker-postgres.md)
 
@@ -162,3 +197,4 @@ plain-поле с артефактами (двойные пробелы, пус�
 | 2026-09-19 | Добавлен ADR 0029 (обрезка по `max_length`). Обрезка вынесена в отдельный Этап 2d (S2d-01…S2d-05). |
 | 2026-09-19 | Добавлен раздел «Технический долг» (TD-01…TD-08). S2d-05 закрыт. |
 | 2026-09-21 | Завершённые этапы (1, 2, 2b, 2c, 2d) свёрнуты в одну сводную таблицу. Детали — в stage-файлах и истории изменений. |
+| 2026-09-22 | Добавлен ADR 0030 (мультиканальность и модель репостера). Этап 3 разбит на 3a (мультиканальность) и 3b (VK). |

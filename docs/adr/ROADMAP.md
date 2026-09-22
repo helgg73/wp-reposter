@@ -2,8 +2,8 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-19
-- **Related:** ADR 0001–0029
+- **Updated:** 2026-09-22
+- **Related:** ADR 0001–0030
 
 ## Обзор
 
@@ -14,7 +14,8 @@
 | 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | ✅ Done | systemd, logging, filelock, retry/backoff, pre-commit |
 | 2c | Композиция поста и модуль трансформаций | ✅ Done | content_transform, validation, WPRestSourceConfig |
 | 2d | Обрезка текста по `max_length` | ✅ Done | content_transform |
-| 3 | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, multipart upload |
+| 3a | Мультиканальность и модель репостера | 🟡 В работе | ADR 0030 |
+| 3b | Интеграция с ВКонтакте | ⚪ Запланирован | VK API, vkbottle |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
 
@@ -49,7 +50,7 @@ doc/adr/
 ├── ...
 ├── 0015-code-fixes-plan.md
 ├── 0016-stage-2-filtering-and-tests.md
-├── 0017-stage-3-vk-integration.md
+├── 0017-stage-3-vk-integration.md # Superseded by ADR 0030
 ├── 0018-stage-4-web-docker-postgres.md
 ├── 0019-stage-5-advanced-ui.md
 ├── 0020-modules-structure-and-responsibilities.md
@@ -62,6 +63,7 @@ doc/adr/
 ├── 0027-pre-commit-hooks-for-quality-gates.md
 ├── 0028-content-transform-and-post-composition.md
 ├── 0029-truncate-by-max-length.md
+├── 0030-multichannel-and-reposter-model.md
 ├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```
