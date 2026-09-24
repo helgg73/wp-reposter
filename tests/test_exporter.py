@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.exporter import MaxExporter
+from src.exporters import MaxExporter
 from src.models import MaxChannelConfig, PostBlock
 
 

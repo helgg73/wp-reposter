@@ -48,9 +48,9 @@
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
 | 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества | — | ✅ Done |
-| 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | Todo |
-| 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | Todo |
-| 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` | 0020, 0022 | Todo |
+| 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | ✅ Done |
+| 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | ✅ Done |
+| 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` | 0020, 0022 | ✅ Done |
 | 4b | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях | 0005, 0022 | Todo |
 | 5 | S3b-05 | Тесты на `VkExporter` | 0022 | Todo |
 | 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | Todo |
@@ -115,6 +115,7 @@
 | TD-12 | Вынести паузу `min_interval_between_messages` в отдельный класс | Второй канал с другим rate-limit или несколько процессов | 0030 |
 | TD-13 | `vk_token()` читает окружение через `os.environ` (+ `load_dotenv()`), в обход `pydantic-settings` | Второй динамический секрет (Telegram, OK) или требование единого SettingsSource | 0022 |
 | TD-14 | `tests/conftest.py` передаёт в `WPRestSourceConfig` поля `include_category_ids` / `exclude_category_ids` / `include_tag_ids` / `exclude_tag_ids`, которых в модели больше нет (ADR 0030). `pydantic` с `extra="ignore"` молча их съедает | Следующий рефакторинг тестов или перед Этапом 4 | 0030 |
+| TD-15 | Дублирование `format_post()` между `MaxExporter` и `VkExporter` | Расхождение в деталях форматирования или третий канал | 0020, 0022 |
 
 ### Пояснения
 
@@ -211,6 +212,16 @@
 > лишние поля — тесты не падают, но фикстура вводит в заблуждение.
 > Почистить при следующем рефакторинге тестов.
 
+> **TD-15.** Логика сборки поста из блоков шаблона (`format_post`)
+> идентична в `MaxExporter` и `VkExporter`: пропуск пустых полей,
+> `truncate`, склейка `prefix + value + postfix`. Дублирование
+> осознанное (ADR 0022, S3b-04b): MAX и VK могут разойтись
+> в деталях (лимиты длины — 16k у VK против меньшего у MAX,
+> превью ссылок, разметка). Вынос в общий базовый класс или
+> функцию — архитектурное решение, заслуживающее отдельного ADR.
+> Триггер возврата — фактическое расхождение в деталях или
+> появление третьего канала (Telegram, OK).
+
 ## История изменений
 
 | Дата | Изменение |
@@ -238,3 +249,4 @@
 | 2026-09-24 | S3b-01: создан ADR 0022 (VK API, `vkbottle` standalone `API`, токен сообщества). Этап 3b переведён в In Progress. |
 | 2026-09-24 | TD-14: `tests/conftest.py` передаёт мёртвые поля `WPRestSourceConfig`. Почистить. |
 | 2026-09-24 | ADR 0022 → Accepted. S3b-04 разбит на S3b-04a (переезд) и S3b-04b (VkExporter). |
+| 2026-09-24 | TD-15: дублирование `format_post()` между `MaxExporter` и `VkExporter`. Вынос в общий класс — при расхождении или третьем канале. |
