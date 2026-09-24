@@ -2,7 +2,7 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-22
+- **Updated:** 2026-09-24
 
 Плоский список задач. Формат ID: `S<этап>-<номер>`.
 
@@ -45,19 +45,19 @@
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
-| 1 | S3a-01 | Модели: `ReposterConfig`, `ReposterChannelConfig`, `FilterConfig` | 0030 | Todo |
-| 2 | S3a-02 | `WPRestSourceConfig` без фильтров | 0030 | Todo |
-| 3 | S3a-03 | `MaxChannelConfig` без `template`, с `chat_id`, `type` | 0030 | Todo |
-| 4 | S3a-04 | Discriminated union `ChannelConfig` (Pydantic v2) | 0030 | Todo |
-| 5 | S3a-05 | Валидация `name` через `Field(pattern=...)` для каналов и репостеров | 0030 | Todo |
-| 6 | S3a-06 | `AppConfig`: `sources`, `channels`, `reposters`, `max_posts_per_fetch`, `min_interval_between_messages` | 0030 | Todo |
-| 7 | S3a-07 | `StateManager`: per-channel файлы (`data/state/<reposter>/<channel>.json`) | 0030 | Todo |
-| 8 | S3a-08 | `StateManager`: lock на репостер (`data/state/<reposter>.lock`) | 0030 | Todo |
-| 9 | S3a-09 | `cutoff_date` per-channel | 0030 | Todo |
+| 1 | S3a-01 | Модели: `ReposterConfig`, `ReposterChannelConfig`, `FilterConfig` | 0030 | ✅ Done |
+| 2 | S3a-02 | `WPRestSourceConfig` без фильтров | 0030 | ✅ Done |
+| 3 | S3a-03 | `MaxChannelConfig` без `template`, с `chat_id`, `type` | 0030 | ✅ Done |
+| 4 | S3a-04 | Discriminated union `ChannelConfig` (Pydantic v2) | 0030 | ✅ Done |
+| 5 | S3a-05 | Валидация `name` через `Field(pattern=...)` для каналов и репостеров | 0030 | ✅ Done |
+| 6 | S3a-06 | `AppConfig`: `sources`, `channels`, `reposters`, `max_posts_per_fetch`, `min_interval_between_messages` | 0030 | ✅ Done |
+| 7 | S3a-07 | `StateManager`: per-channel файлы (`data/state/<reposter>/<channel>.json`) | 0030 | ✅ Done |
+| 8 | S3a-08 | `ReposterLock`: lock на репостер (`data/state/<reposter>.lock`) | 0030 | ✅ Done |
+| 9 | S3a-09 | `cutoff_date` per-channel | 0030 | ✅ Done |
 | 10 | S3a-10 | `fetch_posts` принимает `max_posts`, пагинация останавливается при лимите | 0030 | Todo |
 | 11 | S3a-11 | `main.py`: цикл по репостерам, внутри — по каналам | 0030 | Todo |
 | 12 | S3a-12 | Пауза `min_interval_between_messages` между отправками | 0030 | Todo |
-| 13 | S3a-13 | `config/settings.example.yaml` — новая структура | 0030 | Todo |
+| 13 | S3a-13 | `config/settings.example.yaml` — новая структура | 0030 | ✅ Done |
 | 14 | S3a-14 | Тесты моделей, `StateManager`, `main.py` | 0030 | Todo |
 | 15 | S3a-15 | Ручная проверка: пост уходит в MAX, конфиг в новой структуре | 0030 | Todo |
 
@@ -80,7 +80,7 @@
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
-| 1 | S3b-01 | ADR 0022: VK API, `vkbottle`, токен сообщества |  0030 | Todo |
+| 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle`, токен сообщества | — | Todo |
 | 2 | S3b-02 | `VkChannelConfig` в `models.py` | 0030, 0022 | Todo |
 | 3 | S3b-03 | Секреты ВК в `Secrets` (`VK_ACCESS_TOKEN_<NAME>`) | 0006, 0030 | Todo |
 | 4 | S3b-04 | `src/exporters/vk_exporter.py` (текст) | 0005, 0022 | Todo |
@@ -213,3 +213,4 @@ VK: права токена `wall`, `photos`, `manage`) — отдельная �
 | 2026-09-21 | Завершённые этапы (1, 2, 2b, 2c, 2d) свёрнуты в одну сводную таблицу. Детали — в stage-файлах и истории изменений. |
 | 2026-09-22 | Добавлен ADR 0030 (мультиканальность и модель репостера). Этап 3 разбит на 3a (мультиканальность) и 3b (VK). |
 | 2026-09-22 | TD-10: терминология `cutoff_date` / `last_processed_date`. ADR 0030: lock на канал, контекстный менеджер, сноска про терминологию. |
+| 2026-09-24 | S3a-07…S3a-09 закрыты: `StateManager` per-channel, `ReposterLock` (lock на репостер), контекстные менеджеры. |

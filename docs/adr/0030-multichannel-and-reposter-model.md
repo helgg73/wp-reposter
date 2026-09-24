@@ -250,6 +250,18 @@ class AppConfig(BaseModel):
 }
 ```
 
+**`StateManager` не управляет блокировкой.** Защита
+от параллельных процессов — в `ReposterLock` (раздел 10).
+`StateManager` только читает и пишет свой файл.
+
+Контекстный менеджер (`__enter__` / `__exit__`) гарантирует
+`flush()` при выходе, даже если внутри было исключение:
+
+```
+with StateManager(reposter.name, channel.channel) as state:
+    ...
+```
+
 **Преимущества:**
 
 - Запись одного канала не затирает запись другого.
@@ -267,48 +279,54 @@ class AppConfig(BaseModel):
 независимо. Если VK долго не работал — его `cutoff_date`
 остался старым, при перезапуске подхватит старые посты.
 
-`StateManager` реализует контекстный менеджер (`__enter__` /
-`__exit__`). Это гарантирует `flush()` и освобождение блокировки
-даже при исключении. Использование:
+### 10. Lock на уровне репостера
+
+`data/state/<reposter>.lock` — один lock на репостер.
+Защищает от параллельной обработки одного репостера
+несколькими процессами.
+
+Каналы внутри репостера обрабатываются последовательно
+(раздел 11), внутренней конкуренции между ними нет.
+Lock нужен только против **внешних** параллельных процессов,
+работающих с тем же репостером.
+
+Реализуется классом `ReposterLock` в `src/reposter_lock.py`.
+Захват блокировки — в `__enter__`, освобождение — в `__exit__`.
+Конструктор lock не захватывает. Публичного метода
+`release_lock()` нет — управление жизненным циклом полностью
+делегировано контекстному менеджеру.
+
+`timeout=0` — fail-fast: если lock занят, значит, уже работает
+другой процесс. Ждать бессмысленно.
+
+Использование:
 
 ```
-with StateManager(reposter.name, channel.channel) as state:
-    ...
+for reposter in config.reposters:
+    with ReposterLock(reposter.name):
+        for channel in reposter.channels:
+            with StateManager(reposter.name, channel.channel) as state:
+                ...
 ```
-
-Без контекстного менеджера исключение между созданием
-`StateManager` и `release_lock()` оставит блокировку висящей,
-и следующий экземпляр для того же канала не сможет стартовать.
-
-### 10. Lock на уровне канала
-
-`data/state/<reposter>/<channel>.lock` — lock на канал.
-Каждый канал защищает свой файл от параллельной записи.
-Разные каналы одного репостера не пересекаются и могут
-обрабатываться независимо.
-
-Это согласуется с гранулярностью `StateManager` — один
-экземпляр на канал. Lock живёт ровно столько, сколько
-работает `StateManager` для этого канала.
 
 ### 11. Порядок работы в `main.py`
 
 ```
 для каждого репостера:
-    parser = WordPressParser(source)
-    cutoff = минимальный из cutoff_date всех каналов репостера
-    посты = parser.fetch_posts(
-        cutoff_date=cutoff,
-        max_posts=max_posts_per_fetch,
-    )
-    для каждого канала в репостере:
-        state = StateManager(reposter, channel)
-        для каждого поста:
-            если state.is_processed(guid): пропустить
-            отправить через exporter канала
-            если успешно — state.mark_processed(guid, mid)
-            пауза min_interval_between_messages
-        state.flush()
+    with ReposterLock(reposter.name):
+        parser = WordPressParser(source)
+        cutoff = минимальный из cutoff_date всех каналов репостера
+        посты = parser.fetch_posts(
+            cutoff_date=cutoff,
+            max_posts=max_posts_per_fetch,
+        )
+        для каждого канала в репостере:
+            with StateManager(reposter, channel) as state:
+                для каждого поста:
+                    если state.is_processed(guid): пропустить
+                    отправить через exporter канала
+                    если успешно — state.mark_processed(guid, mid)
+                    пауза min_interval_between_messages
 ```
 
 Парсер вызывается **один раз на репостер** с минимальным
@@ -353,12 +371,12 @@ with StateManager(reposter.name, channel.channel) as state:
   на несколько процессов. Per-reposter lock архитектурно
   правильнее.
 
-- **G. Lock на репостер.**
-  Отвергнуто: `StateManager` создаётся на канал. Если lock
-  на репостер, второй `StateManager` того же репостера
-  (для другого канала) не сможет стартовать. Гранулярность
-  lock должна совпадать с гранулярностью `StateManager` —
-  один lock на канал.
+- **G. Lock на канал.**
+  Отвергнуто: цикл по каналам в `main.py` последовательный
+  (раздел 11), внутренней конкуренции между каналами одного
+  репостера нет. Lock нужен только против внешних параллельных
+  процессов, работающих с тем же репостером. Per-reposter lock
+  покрывает этот случай и не плодит лишние файлы.
 
 - **H. ID каналов в `.env`.**
   Отвергнуто: ID — часть конфигурации канала, не секрет.
@@ -373,6 +391,13 @@ with StateManager(reposter.name, channel.channel) as state:
   объяснять. Строгая валидация `^[a-z][a-z0-9_]*$` проще
   и безопаснее.
 
+- **K. Lock в `StateManager`.**
+  Отвергнуто: `StateManager` создаётся на канал, lock — на
+  репостер. Гранулярности не совпадают. Если lock в
+  `StateManager`, второй `StateManager` того же репостера
+  (для другого канала) не сможет стартовать. Блокировка —
+  отдельная ответственность, реализуется `ReposterLock`.
+
 ## Consequences
 
 **Положительные:**
@@ -383,7 +408,9 @@ with StateManager(reposter.name, channel.channel) as state:
 - Модель готова к добавлению новых типов каналов (Telegram, OK).
 - `min_interval_between_messages` защищает от rate-limit.
 - `max_posts_per_fetch` защищает от перегрузки парсера.
-- Per-channel lock готов к масштабированию.
+- Per-reposter lock готов к масштабированию.
+- Разделение ответственности: `StateManager` — данные,
+  `ReposterLock` — процессы.
 - Плоская MVP-модель заменена на расширяемую.
 
 **Отрицательные:**
@@ -418,17 +445,21 @@ with StateManager(reposter.name, channel.channel) as state:
       (`VK_ACCESS_TOKEN_<NAME>`).
 - [ ] `StateManager` — per-channel файлы
       (`data/state/<reposter>/<channel>.json`).
-- [ ] `StateManager` — lock на канал
-      (`data/state/<reposter>/<channel>.lock`).
+- [ ] `StateManager` — без блокировки, только данные.
 - [ ] `StateManager` — контекстный менеджер (`__enter__` / `__exit__`).
+- [ ] `ReposterLock` — новый класс, lock на репостер
+      (`data/state/<reposter>.lock`).
+- [ ] `ReposterLock` — контекстный менеджер.
 - [ ] `cutoff_date` — per-channel.
-- [ ] `main.py` — цикл по репостерам, внутри — по каналам.
+- [ ] `main.py` — цикл по репостерам с `ReposterLock`, внутри —
+      по каналам с `StateManager`.
 - [ ] Пауза `min_interval_between_messages` между отправками.
 - [ ] `fetch_posts` принимает `max_posts`, пагинация
       останавливается при достижении лимита.
 - [ ] `config/settings.example.yaml` — новая структура.
 - [ ] Тесты моделей обновлены.
-- [ ] Тесты `StateManager` — per-channel, per-reposter lock.
+- [ ] Тесты `StateManager` — per-channel.
+- [ ] Тесты `ReposterLock` — блокировка на репостер.
 - [ ] Тесты `main.py` — мультиканальность (можно mock).
 - [ ] `uv run pytest` проходит.
 - [ ] `uv run ruff check` проходит.
