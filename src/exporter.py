@@ -5,15 +5,27 @@ from maxapi import Bot
 from maxapi.types import InputMediaBuffer
 
 from .content_transform import truncate
-from .models import MaxChannelConfig
+from .models import MaxChannelConfig, PostBlock
 
 logger = logging.getLogger(__name__)
 
 
 class MaxExporter:
-    def __init__(self, config: MaxChannelConfig, bot_token: str, chat_id: str):
+    """Экспортер постов в канал MAX.
+
+    Создаётся на пару «канал + репостер»: шаблон поста берётся
+    из `ReposterChannelConfig` (ADR 0030, п. 3), а `chat_id`,
+    `disable_link_preview` — из `MaxChannelConfig`.
+    """
+
+    def __init__(
+        self,
+        config: MaxChannelConfig,
+        template: list[PostBlock],
+        bot_token: str,
+    ):
         self.config = config
-        self.chat_id = chat_id
+        self.template = template
         self.bot = Bot(token=bot_token) if self.config.enabled else None
         self.http_client = httpx.AsyncClient(timeout=30.0)
 
@@ -28,7 +40,7 @@ class MaxExporter:
         max_length <= 0 — без обрезки.
         """
         parts: list[str] = []
-        for block in self.config.template:
+        for block in self.template:
             value = entry.get(block.field, "")
             if not value:
                 continue
@@ -69,7 +81,7 @@ class MaxExporter:
                     attachments.append(attachment)
 
             result = await self.bot.send_message(
-                chat_id=self.chat_id,
+                chat_id=self.config.chat_id,
                 text=text,
                 attachments=attachments if attachments else None,
                 disable_link_preview=self.config.disable_link_preview,
