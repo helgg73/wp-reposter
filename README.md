@@ -1,7 +1,7 @@
 # wp-reposter
 
 Репостер свежих публикаций с WordPress-сайтов в мессенджеры.
-Сейчас поддерживается MAX, в планах — ВКонтакте и другие каналы.
+Сейчас поддерживается MAX и ВКонтакте, в планах — другие каналы.
 
 Проект вырос из задачи «постить свежие новости с сайта в канал MAX
 без ручной работы». Сейчас это расширяемая система с моделями
@@ -46,6 +46,15 @@ MAX_BOT_TOKEN=<токен бота>
 Токен бота выдаёт администратор бота MAX. Он один для всех каналов MAX
 (у бота может быть несколько каналов — различаются `chat_id`).
 
+Для VK:
+
+VK_ACCESS_TOKEN_<NAME>=<токен сообщества>
+
+Где <NAME> — имя VK-канала в конфиге в верхнем регистре.
+Пример: канал name=vk_main → VK_ACCESS_TOKEN_VK_MAIN.
+Токен выпускается в настройках сообщества: «Работа с API» →
+«Создать ключ». Права: wall, photos. Тип — сообщество.
+
 ### 2. Конфигурация (`config/settings.yaml`)
 
 Скопируйте пример:
@@ -67,9 +76,13 @@ cp config/settings.example.yaml config/settings.yaml
 
 **`channels`** — каналы (куда постить). Поля:
 - `type` — тип канала (`max`);
-- `name` — имя канала (используется в репостерах);
-- `chat_id` — ID канала в MAX;
-- `disable_link_preview` — отключать превью ссылок.
+  - `name` — имя канала (используется в репостерах);
+  - `chat_id` — ID канала в MAX;
+  - `disable_link_preview` — отключать превью ссылок.
+- `type` - тип канала (`vk`)
+  - `name` — имя канала;
+  - `group_id` — ID сообщества (положительное число, без `-`);
+  - `enabled` — флаг.
 
 **`reposters`** — связки «источник + каналы + правила». Поля:
 - `name` — имя репостера;
@@ -160,7 +173,9 @@ src/
 ├── config.py                # загрузка YAML + .env
 ├── models.py                # Pydantic-модели конфигурации
 ├── parser.py                # парсер WP REST API
-├── exporter.py              # отправка в MAX
+├── exporters/
+│   ├── max_exporter.py      # отправка в MAX
+│   └── vk_exporter.py       # отправка в VK
 ├── content_transform.py     # преобразования текста (HTML, обрезка)
 ├── validation.py            # валидация конфигурации и источников
 ├── state.py                 # состояние каналов (JSON)
@@ -191,6 +206,7 @@ docs/adr/                    # Architecture Decision Records
 Ключевые документы:
 
 - [ADR 0009](docs/adr/0009-adr-json-state-storage.md) — хранение состояния.
+- [ADR 0022](docs/adr/0022-adr-vk-api.md) — интеграция с VK.
 - [ADR 0028](docs/adr/0028-content-transform-and-post-composition.md) —
   преобразования текста и композиция поста.
 - [ADR 0029](docs/adr/0029-truncate-by-max-length.md) — обрезка по лимиту.
