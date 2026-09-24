@@ -10,7 +10,7 @@ Long Polling и обработки входящих событий (ADR 0022, п
 
 import logging
 
-from vkbottle import API
+from vkbottle import API, VKAPIError
 
 from ..content_transform import truncate
 from ..models import PostBlock, VkChannelConfig
@@ -52,7 +52,7 @@ class VkExporter:
 
         Дублирование с `MaxExporter` осознанное: MAX и VK могут
         разойтись в деталях форматирования (лимиты длины,
-        превью ссылок). Вынос в общий класс — отдельная задача.
+        превью ссылок). Вынос в общий класс — TD-15.
         """
         parts: list[str] = []
         for block in self.template:
@@ -96,11 +96,14 @@ class VkExporter:
                 },
             )
 
+            # Защита 1: кастомные валидаторы или изменённое поведение
+            # могут вернуть dict с "error" вместо исключения.
             if "error" in response:
                 error = response["error"]
                 logger.error(
-                    f"❌ VK API ошибка при отправке в канал "
-                    f"'{self.config.name}': {error.get('error_msg', error)}"
+                    f"❌ VK API ошибка (code={error.get('error_code')}) "
+                    f"при отправке в канал '{self.config.name}': "
+                    f"{error.get('error_msg', error)}"
                 )
                 return None
 
@@ -115,6 +118,13 @@ class VkExporter:
                 logger.warning(f"⚠️  Отправлено в VK, но post_id не получен: {text[:50]}...")
             return post_id
 
+        except VKAPIError as e:
+            # Защита 2: стандартное поведение vkbottle — исключение.
+            logger.error(
+                f"❌ VK API ошибка (code={e.code}) при отправке в канал "
+                f"'{self.config.name}': {e.error_msg}"
+            )
+            return None
         except Exception as e:
             logger.error(f"❌ Ошибка при отправке в VK (канал '{self.config.name}'): {e}")
             return None
@@ -122,15 +132,8 @@ class VkExporter:
     async def close(self):
         """Закрывает HTTP-сессию VK API.
 
-        `vkbottle.API` использует внутренний `aiohttp`-клиент.
-        Точное имя метода закрытия зависит от версии: `http_client.close()`
-        или `close()`. Пробуем оба.
+        vkbottle 4.x использует SingleAiohttpClient (aiohttp.ClientSession)
+        с методом close() для завершения сессии (ADR 0022, S3b-04b).
         """
         if self.api:
-            try:
-                if hasattr(self.api, "http_client"):
-                    await self.api.http_client.close()
-                elif hasattr(self.api, "close"):
-                    await self.api.close()
-            except Exception:
-                pass
+            await self.api.http_client.close()

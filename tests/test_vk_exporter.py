@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from vkbottle import VKAPIError
 
 from src.exporters import VkExporter
 from src.models import PostBlock, VkChannelConfig
@@ -186,9 +187,10 @@ class TestExportError:
 
     @pytest.mark.asyncio
     async def test_vk_api_error_returns_none(self, enabled_exporter, vk_api_mock):
-        vk_api_mock.request.return_value = {
-            "error": {"error_code": 100, "error_msg": "One of the parameters is invalid"}
-        }
+        """vkbottle бросает VKAPIError при ошибке API."""
+        vk_api_mock.request.side_effect = VKAPIError[100](
+            error_msg="One of the parameters is invalid"
+        )
         entry = {"id": "1", "title.rendered": "T", "link": "https://x"}
         result = await enabled_exporter.export(entry)
         assert result is None
@@ -207,3 +209,18 @@ class TestExportError:
         entry = {"id": "1", "title.rendered": "T", "link": "https://x"}
         result = await enabled_exporter.export(entry)
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_error_in_response_returns_none(self, enabled_exporter, vk_api_mock):
+        """Защита 1: если кастомный валидатор вернёт dict с error."""
+        vk_api_mock.request.return_value = {
+            "error": {"error_code": 100, "error_msg": "One of the parameters is invalid"}
+        }
+        entry = {"id": "1", "title.rendered": "T", "link": "https://x"}
+        result = await enabled_exporter.export(entry)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_close_calls_http_client(self, enabled_exporter, vk_api_mock):
+        await enabled_exporter.close()
+        vk_api_mock.http_client.close.assert_called_once()
