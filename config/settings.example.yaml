@@ -33,6 +33,13 @@ channels:
     chat_id: "-1001234567890"
     disable_link_preview: true
 
+  # Пример VK-канала (ADR 0022).
+  # Токен: VK_ACCESS_TOKEN_<NAME> в .env.
+  # group_id: ID сообщества, положительное число.
+  # - type: vk
+  #   name: vk_main
+  #   enabled: true
+  #   group_id: 123456789
 reposters:
   # Имя репостера: только [a-z0-9_], начинается с буквы.
   # Используется в пути data/state/<reposter>/.

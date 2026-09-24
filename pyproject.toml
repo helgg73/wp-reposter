@@ -11,6 +11,7 @@ dependencies = [
     "pyyaml>=6.0.1",
     "maxapi>=1.2.0",
     "filelock>=3.32.7",
+    "vkbottle>=4.11.0",
 ]
 
 [dependency-groups]

@@ -8,13 +8,14 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from .config import load_settings
-from .exporter import MaxExporter
+from .exporters import MaxExporter, VkExporter
 from .models import (
     AppConfig,
     MaxChannelConfig,
     PostBlock,
     ReposterConfig,
     Secrets,
+    VkChannelConfig,
 )
 from .parser import WordPressParser
 from .reposter_lock import ReposterLock
@@ -51,19 +52,26 @@ def setup_logging():
 
 
 def create_exporter(
-    channel_config: MaxChannelConfig,
+    channel_config: MaxChannelConfig | VkChannelConfig,
     template: list[PostBlock],
     secrets: Secrets,
-) -> MaxExporter:
-    """Фабрика экспортеров. Пока только MAX.
+):
+    """Фабрика экспортеров по типу канала (ADR 0022, п. 4).
 
-    При появлении VK — добавить ветку с VkChannelConfig.
+    MAX — токен из `secrets.max_bot_token` (один на всех).
+    VK — токен из `secrets.vk_token(channel_name)` (per-channel).
     """
     if isinstance(channel_config, MaxChannelConfig):
         return MaxExporter(
             config=channel_config,
             template=template,
             bot_token=secrets.max_bot_token,
+        )
+    if isinstance(channel_config, VkChannelConfig):
+        return VkExporter(
+            config=channel_config,
+            template=template,
+            access_token=secrets.vk_token(channel_config.name),
         )
     raise ValueError(f"Неизвестный тип канала: {type(channel_config).__name__}")
 

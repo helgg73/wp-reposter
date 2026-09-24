@@ -4,8 +4,8 @@ import httpx
 from maxapi import Bot
 from maxapi.types import InputMediaBuffer
 
-from .content_transform import truncate
-from .models import MaxChannelConfig, PostBlock
+from ..content_transform import truncate
+from ..models import MaxChannelConfig, PostBlock
 
 logger = logging.getLogger(__name__)
 
