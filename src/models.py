@@ -75,8 +75,26 @@ class MaxChannelConfig(BaseModel):
     disable_link_preview: bool = True
 
 
+class VkChannelConfig(BaseModel):
+    """Канал типа VK: только про канал, не про правила постинга.
+
+    Шаблон — в `ReposterChannelConfig.template`, не здесь
+    (ADR 0030, п. 3). Токен — в `.env` (ADR 0022, п. 3),
+    не в конфиге канала.
+
+    `group_id` — положительное число, без префикса `-`.
+    VK API принимает `owner_id = -group_id` при вызове `wall.post`
+    (ADR 0022, п. 2).
+    """
+
+    type: Literal["vk"] = "vk"
+    name: str = Field(pattern=_NAME_PATTERN)
+    enabled: bool = True
+    group_id: int = Field(gt=0)
+
+
 ChannelConfig = Annotated[
-    MaxChannelConfig,
+    MaxChannelConfig | VkChannelConfig,
     Field(discriminator="type"),
 ]
 

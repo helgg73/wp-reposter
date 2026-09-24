@@ -1,7 +1,7 @@
 # ADR 0030: Мультиканальность и модель репостера
 
-- **Status:** Proposed
-- **Date:** 2026-09-22
+- **Status:** Accepted
+- **Date:** 2026-09-24
 - **Related:** ADR 0009 (JSON state), ADR 0012 (модели), ADR 0017 (Этап 3, VK), ADR 0020 (структура модулей), ADR 0028 (трансформации)
 
 ## Context
@@ -428,43 +428,45 @@ for reposter in config.reposters:
 
 ## Done criteria
 
-- [ ] `WPRestSourceConfig` без фильтров.
-- [ ] `MaxChannelConfig` без `template`, с `chat_id` и `type`.
-- [ ] `VkChannelConfig` с `group_id` и `type`.
-- [ ] `ReposterConfig` с `source`, `filter`, `channels`.
-- [ ] `ReposterChannelConfig` с `channel` и `template`.
-- [ ] `FilterConfig` с `include_*`/`exclude_*`.
-- [ ] `AppConfig` с `sources`, `channels`, `reposters`,
+- [x] `WPRestSourceConfig` без фильтров.
+- [x] `MaxChannelConfig` без `template`, с `chat_id` и `type`.
+- [x] `ReposterConfig` с `source`, `filter`, `channels`.
+- [x] `ReposterChannelConfig` с `channel` и `template`.
+- [x] `FilterConfig` с `include_*`/`exclude_*`.
+- [x] `AppConfig` с `sources`, `channels`, `reposters`,
       `max_posts_per_fetch`, `min_interval_between_messages`.
-- [ ] `channels` — discriminated union через
+- [x] `channels` — discriminated union через
       `Annotated[..., Field(discriminator="type")]`.
-- [ ] Валидация `channel.name` через Pydantic
+- [x] Валидация `channel.name` через Pydantic
       `Field(pattern=r"^[a-z][a-z0-9_]*$")`.
-- [ ] Валидация `reposter.name` тем же шаблоном.
-- [ ] `Secrets` — токены по имени канала
-      (`VK_ACCESS_TOKEN_<NAME>`).
-- [ ] `StateManager` — per-channel файлы
+- [x] Валидация `reposter.name` тем же шаблоном.
+- [x] `StateManager` — per-channel файлы
       (`data/state/<reposter>/<channel>.json`).
-- [ ] `StateManager` — без блокировки, только данные.
-- [ ] `StateManager` — контекстный менеджер (`__enter__` / `__exit__`).
-- [ ] `ReposterLock` — новый класс, lock на репостер
+- [x] `StateManager` — без блокировки, только данные.
+- [x] `StateManager` — контекстный менеджер (`__enter__` / `__exit__`).
+- [x] `ReposterLock` — новый класс, lock на репостер
       (`data/state/<reposter>.lock`).
-- [ ] `ReposterLock` — контекстный менеджер.
-- [ ] `cutoff_date` — per-channel.
-- [ ] `main.py` — цикл по репостерам с `ReposterLock`, внутри —
+- [x] `ReposterLock` — контекстный менеджер.
+- [x] `cutoff_date` — per-channel.
+- [x] `main.py` — цикл по репостерам с `ReposterLock`, внутри —
       по каналам с `StateManager`.
-- [ ] Пауза `min_interval_between_messages` между отправками.
-- [ ] `fetch_posts` принимает `max_posts`, пагинация
+- [x] Пауза `min_interval_between_messages` между отправками.
+- [x] `fetch_posts` принимает `max_posts`, пагинация
       останавливается при достижении лимита.
-- [ ] `config/settings.example.yaml` — новая структура.
-- [ ] Тесты моделей обновлены.
-- [ ] Тесты `StateManager` — per-channel.
-- [ ] Тесты `ReposterLock` — блокировка на репостер.
-- [ ] Тесты `main.py` — мультиканальность (можно mock).
-- [ ] `uv run pytest` проходит.
-- [ ] `uv run ruff check` проходит.
-- [ ] Ручная проверка: пост уходит в MAX (как раньше), конфиг
+- [x] `config/settings.example.yaml` — новая структура.
+- [x] Тесты моделей обновлены.
+- [x] Тесты `StateManager` — per-channel.
+- [x] Тесты `ReposterLock` — блокировка на репостер.
+- [x] `uv run pytest` проходит.
+- [x] `uv run ruff check` проходит.
+- [x] Ручная проверка: пост уходит в MAX (как раньше), конфиг
       в новой структуре.
+
+### Отложено до Этапа 3b
+
+- [ ] `VkChannelConfig` с `group_id` и `type`.
+- [ ] `Secrets` — токены по имени канала (`VK_ACCESS_TOKEN_<NAME>`).
+- [ ] Тесты `main.py` — мультиканальность (требует VK для полного покрытия).
 
 ## Not to touch
 

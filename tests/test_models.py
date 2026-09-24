@@ -11,6 +11,7 @@ from src.models import (
     PostBlock,
     ReposterChannelConfig,
     ReposterConfig,
+    VkChannelConfig,
     WPRestSourceConfig,
 )
 
@@ -206,6 +207,80 @@ class TestMaxChannelConfig:
     )
     def test_valid_name(self, good_name):
         channel = MaxChannelConfig(name=good_name, chat_id="-100")
+        assert channel.name == good_name
+
+
+# ---------------------------------------------------------------------------
+# VkChannelConfig
+# ---------------------------------------------------------------------------
+
+
+class TestVkChannelConfig:
+    """Модель `VkChannelConfig`: без шаблона, с `group_id` и `type`."""
+
+    def test_valid(self):
+        channel = VkChannelConfig(
+            name="vk_main",
+            group_id=123456789,
+        )
+        assert channel.type == "vk"
+        assert channel.name == "vk_main"
+        assert channel.enabled is True
+        assert channel.group_id == 123456789
+
+    def test_no_template_field(self):
+        """Шаблон больше не живёт в канале (ADR 0030, п. 3)."""
+        channel = VkChannelConfig(name="vk_main", group_id=123)
+        assert not hasattr(channel, "template")
+
+    def test_no_chat_id_field(self):
+        """`chat_id` — специфика MAX, у VK — `group_id`."""
+        channel = VkChannelConfig(name="vk_main", group_id=123)
+        assert not hasattr(channel, "chat_id")
+
+    def test_group_id_required(self):
+        with pytest.raises(ValidationError):
+            VkChannelConfig(name="vk_main")
+
+    def test_name_required(self):
+        with pytest.raises(ValidationError):
+            VkChannelConfig(group_id=123)
+
+    def test_group_id_positive(self):
+        """group_id > 0: ноль и отрицательные отклоняются (ADR 0022, п. 2)."""
+        with pytest.raises(ValidationError):
+            VkChannelConfig(name="vk_main", group_id=0)
+        with pytest.raises(ValidationError):
+            VkChannelConfig(name="vk_main", group_id=-123)
+
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            "VK_Main",  # верхний регистр
+            "vk-main",  # дефис
+            "vk main",  # пробел
+            "1vk",  # начинается с цифры
+            "_vk",  # начинается с подчёркивания
+            "vk/main",  # слеш
+            "",  # пусто
+        ],
+    )
+    def test_invalid_name(self, bad_name):
+        with pytest.raises(ValidationError):
+            VkChannelConfig(name=bad_name, group_id=123)
+
+    @pytest.mark.parametrize(
+        "good_name",
+        [
+            "vk",
+            "vk_main",
+            "vk_main_2",
+            "a",
+            "a1_b2_c3",
+        ],
+    )
+    def test_valid_name(self, good_name):
+        channel = VkChannelConfig(name=good_name, group_id=123)
         assert channel.name == good_name
 
 
@@ -416,3 +491,25 @@ class TestAppConfig:
                 channels=[{"type": "telegram", "name": "tg_main"}],
                 reposters=[minimal_reposter],
             )
+
+    def test_discriminator_type_vk(self, minimal_source, minimal_reposter):
+        """Канал типа vk распознаётся по `type` (ADR 0022, п. 2)."""
+        config = AppConfig(
+            sources=[minimal_source],
+            channels=[{"type": "vk", "name": "vk_main", "group_id": 123}],
+            reposters=[minimal_reposter],
+        )
+        assert isinstance(config.channels[0], VkChannelConfig)
+
+    def test_mixed_channel_types(self, minimal_source, minimal_reposter):
+        """MAX и VK в одном конфиге — discriminated union работает."""
+        config = AppConfig(
+            sources=[minimal_source],
+            channels=[
+                {"type": "max", "name": "max_main", "chat_id": "-100"},
+                {"type": "vk", "name": "vk_main", "group_id": 123},
+            ],
+            reposters=[minimal_reposter],
+        )
+        assert isinstance(config.channels[0], MaxChannelConfig)
+        assert isinstance(config.channels[1], VkChannelConfig)
