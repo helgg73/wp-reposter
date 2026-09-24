@@ -3,37 +3,44 @@ import contextlib
 import logging
 import signal
 import sys
+import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from filelock import Timeout
-
 from .config import load_settings
 from .exporter import MaxExporter
+from .models import (
+    AppConfig,
+    MaxChannelConfig,
+    PostBlock,
+    ReposterConfig,
+    Secrets,
+)
 from .parser import WordPressParser
+from .reposter_lock import ReposterLock
 from .state import StateManager
-from .validation import validate_or_exit
+from .validation import find_channel, find_source, validate_or_exit
 
 logger = logging.getLogger(__name__)
+
+# Глобальный таймер паузы между отправками (TD-12: вынести в класс).
+_last_sent_at: float = 0.0
 
 
 def setup_logging():
     """Настраивает логирование: файл с ротацией + stdout."""
-    root_logger = logging.getLogger()  # Корневой логгер (без имени)
+    root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
 
-    # Если хендлеры уже добавлены, не дублируем
     if root_logger.handlers:
         return
 
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-    # Консоль (stdout)
     ch = logging.StreamHandler(sys.stdout)
     ch.setFormatter(formatter)
     root_logger.addHandler(ch)
 
-    # Файл с ротацией (10 МБ * 5 файлов)
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     fh = RotatingFileHandler(
@@ -43,87 +50,162 @@ def setup_logging():
     root_logger.addHandler(fh)
 
 
-async def check_sources(app_config, state, exporter):
-    logger.info("=" * 60)
-    logger.info("🔄 Проверка источников...")
+def create_exporter(
+    channel_config: MaxChannelConfig,
+    template: list[PostBlock],
+    secrets: Secrets,
+) -> MaxExporter:
+    """Фабрика экспортеров. Пока только MAX.
 
-    for source in app_config.sources:
-        logger.info(f"📡 Источник: {source.name} ({source.base_url})")
-        if state.last_processed_date:
-            logger.info(f"   🛡️  Фильтр: ищем посты новее {state.last_processed_date}")
+    При появлении VK — добавить ветку с VkChannelConfig.
+    """
+    if isinstance(channel_config, MaxChannelConfig):
+        return MaxExporter(
+            config=channel_config,
+            template=template,
+            bot_token=secrets.max_bot_token,
+        )
+    raise ValueError(f"Неизвестный тип канала: {type(channel_config).__name__}")
 
+
+async def send_with_pause(
+    exporter,
+    entry: dict,
+    min_interval: float,
+):
+    """Отправляет пост с глобальной паузой между отправками.
+
+    TD-12: пауза реализована inline. Вынести в отдельный класс,
+    если появится второй канал с другим rate-limit.
+    """
+    global _last_sent_at
+    now = time.monotonic()
+    elapsed = now - _last_sent_at
+    if elapsed < min_interval:
+        await asyncio.sleep(min_interval - elapsed)
+
+    result = await exporter.export(entry, entry.get("_image_url"))
+    _last_sent_at = time.monotonic()
+    return result
+
+
+async def process_reposter(
+    reposter: ReposterConfig,
+    config: AppConfig,
+    secrets: Secrets,
+) -> None:
+    """Обрабатывает один репостер: парсинг + отправка во все каналы."""
+    source = find_source(config.sources, reposter.source)
+    # Валидация при старте гарантирует, что source найден.
+    # Если здесь None — валидация не запускалась или сломана.
+    if source is None:
+        logger.error(
+            f"❌ Репостер '{reposter.name}': источник '{reposter.source}' не найден. Пропускаем."
+        )
+        return
+
+    with ReposterLock(reposter.name):
+        # 1. Собираем cutoff — минимальный из всех каналов репостера
+        cutoffs: list[str] = []
+        for rc in reposter.channels:
+            with StateManager(reposter.name, rc.channel) as state:
+                if state.last_processed_date:
+                    cutoffs.append(state.last_processed_date)
+        cutoff = min(cutoffs) if cutoffs else None
+
+        # 2. Парсим один раз на репостер
         parser = WordPressParser(source)
         try:
-            fetched_entries = await parser.fetch_posts(cutoff_date=state.last_processed_date)
-            new_entries = [
-                entry for entry in fetched_entries if not state.is_processed(entry["id"])
-            ]
-            total_new = len(new_entries)
-            logger.info(f"📊 Найдено новых постов для отправки: {total_new}")
-
-            if total_new == 0:
-                logger.info("✅ Новых постов нет, ожидаем следующего цикла.")
-                continue
-
-            max_to_send = app_config.max_new_posts_per_run
-            entries_to_send = new_entries[:max_to_send]
-            skipped_count = total_new - len(entries_to_send)
-            if skipped_count > 0:
-                logger.warning(f"️  Пропущено {skipped_count} постов (лимит {max_to_send}).")
-
-            sent_count = 0
-            newest_sent_date = None
-            for entry in entries_to_send:
-                guid = entry["id"]
-                image_url = entry.get("_image_url")
-                if image_url:
-                    logger.info(f"   🖼️  Изображение: {image_url.split('/')[-1]}")
-
-                message_id = await exporter.export(entry, image_url)
-                if message_id:
-                    state.mark_processed(guid=guid, message_id=message_id, channel="max")
-                    sent_count += 1
-                    if newest_sent_date is None:
-                        newest_sent_date = entry.get("published")
-
-            logger.info(f"✅ Отправлено постов: {sent_count}")
-            if newest_sent_date:
-                state.update_cutoff_date(newest_sent_date)
-                logger.info(f"💡 Граница времени сдвинута вперёд: {newest_sent_date}")
-
-            state.flush()
-
-        except Exception as e:
-            logger.exception(f"❌ Ошибка при обработке источника {source.name}: {e}")
+            posts = await parser.fetch_posts(
+                cutoff_date=cutoff,
+                post_filter=reposter.filter,
+                max_posts=config.max_posts_per_fetch,
+            )
+        except ValueError as e:
+            logger.error(f"❌ Репостер '{reposter.name}': {e}")
+            return
         finally:
             await parser.close()
+
+        logger.info(f"📊 Репостер '{reposter.name}': получено постов из источника — {len(posts)}")
+
+        if not posts:
+            return
+
+        # 3. Отправляем в каждый канал репостера
+        for rc in reposter.channels:
+            channel_config = find_channel(config.channels, rc.channel)
+            if channel_config is None:
+                logger.error(
+                    f"❌ Репостер '{reposter.name}': канал '{rc.channel}' "
+                    f"не найден. Пропускаем канал."
+                )
+                continue
+
+            exporter = create_exporter(channel_config, rc.template, secrets)
+            try:
+                sent = 0
+                newest_sent_date: str | None = None
+
+                with StateManager(reposter.name, rc.channel) as state:
+                    for entry in posts:
+                        if state.is_processed(entry["id"]):
+                            continue
+                        if sent >= config.max_new_posts_per_run:
+                            break
+
+                        mid = await send_with_pause(
+                            exporter,
+                            entry,
+                            config.min_interval_between_messages,
+                        )
+                        if mid:
+                            state.mark_processed(entry["id"], mid)
+                            state.flush()
+                            sent += 1
+                            if newest_sent_date is None:
+                                newest_sent_date = entry.get("published")
+
+                    if newest_sent_date:
+                        state.update_last_processed_date(newest_sent_date)
+
+                logger.info(
+                    f"✅ Репостер '{reposter.name}', канал '{rc.channel}': "
+                    f"отправлено постов — {sent}"
+                )
+            except Exception as e:
+                logger.exception(
+                    f"❌ Репостер '{reposter.name}', канал '{rc.channel}': ошибка при отправке: {e}"
+                )
+            finally:
+                await exporter.close()
+
+
+async def check_all(
+    config: AppConfig,
+    secrets: Secrets,
+) -> None:
+    """Один цикл по всем репостерам."""
+    logger.info("=" * 60)
+    logger.info("🔄 Проверка репостеров...")
+
+    for reposter in config.reposters:
+        try:
+            await process_reposter(reposter, config, secrets)
+        except Exception:
+            logger.exception(f"❌ Репостер '{reposter.name}': непредвиденная ошибка")
 
 
 async def main():
     setup_logging()
-    logger.info("🚀 Запуск WP Reposter (REST API)...")
+    logger.info("🚀 Запуск WP Reposter...")
 
     app_config, secrets = load_settings()
-    logger.info(f"📂 Загружено {len(app_config.sources)} источников")
-    logger.info(f"⚙️  Лимит новых постов за проход: {app_config.max_new_posts_per_run}")
+    logger.info(f"📂 Загружено репостеров: {len(app_config.reposters)}")
+    logger.info(f"⚙️  Лимит новых постов на канал за проход: {app_config.max_new_posts_per_run}")
+    logger.info(f"⚙️  Лимит постов из API за раз: {app_config.max_posts_per_fetch}")
 
     validate_or_exit(app_config)
-
-    # Безопасная инициализация StateManager с обработкой блокировки
-    try:
-        state = StateManager()
-    except Timeout:
-        logger.error("💥 Запуск отменён: другой экземпляр репостера уже работает.")
-        sys.exit(1)
-    except Exception as e:
-        logger.exception(f"💥 Критическая ошибка при инициализации состояния: {e}")
-        sys.exit(1)
-
-    exporter = MaxExporter(
-        config=app_config.export.max_channel,
-        bot_token=secrets.max_bot_token,
-        chat_id=secrets.max_chat_id,
-    )
 
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
@@ -139,7 +221,7 @@ async def main():
     try:
         while not stop_event.is_set():
             try:
-                await check_sources(app_config, state, exporter)
+                await check_all(app_config, secrets)
             except Exception:
                 logger.exception("Непредвиденная ошибка в главном цикле")
 
@@ -148,15 +230,15 @@ async def main():
 
             logger.info(f"⏳ Ожидание {app_config.check_interval} секунд до следующей проверки...")
             with contextlib.suppress(TimeoutError):
-                await asyncio.wait_for(stop_event.wait(), timeout=app_config.check_interval)
+                await asyncio.wait_for(
+                    stop_event.wait(),
+                    timeout=app_config.check_interval,
+                )
 
     except KeyboardInterrupt:
         logger.info("Получен KeyboardInterrupt (Ctrl+C)...")
     finally:
-        logger.info("Закрытие сетевых сессий и сохранение состояния...")
-        await exporter.close()
-        state.flush()
-        state.release_lock()  # <-- НОВОЕ: Гарантированное освобождение блокировки
+        logger.info("Завершение работы...")
         logger.info("✅ Репостер корректно остановлен.")
 
 
