@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from src.models import FieldSpec, WPRestSourceConfig
+from src.models import FieldSpec, FilterConfig, WPRestSourceConfig
 from src.parser import WordPressParser
 
 # Публичный WP-сайт для интеграционных тестов (не содержит чувствительных данных)
@@ -9,7 +9,11 @@ PUBLIC_WP_BASE_URL = "https://make.wordpress.org/playground"
 
 
 def _make_source() -> WPRestSourceConfig:
-    """Источник для интеграционных тестов с минимальным набором полей."""
+    """Источник для интеграционных тестов с минимальным набором полей.
+
+    Фильтры (категории, теги) — не здесь, а в FilterConfig
+    (ADR 0030, п. 2). Передаются в `fetch_posts(post_filter=...)`.
+    """
     return WPRestSourceConfig(
         name="Public WP (integration test)",
         base_url=PUBLIC_WP_BASE_URL,
@@ -17,10 +21,6 @@ def _make_source() -> WPRestSourceConfig:
         featured_image_size="medium",
         max_pages=1,
         per_page=5,
-        include_category_ids=[],
-        exclude_category_ids=[],
-        include_tag_ids=[],
-        exclude_tag_ids=[],
         fields=[
             FieldSpec(name="title.rendered", type="plain"),
             FieldSpec(name="excerpt.rendered", type="html"),
@@ -33,18 +33,19 @@ def _make_source() -> WPRestSourceConfig:
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_server_side_category_filtering():
-    """
-    Интеграционный тест: проверяет, что WP API действительно фильтрует посты по категориям.
+    """Интеграционный тест: WP API фильтрует посты по категориям.
+
     Использует публичный сайт make.wordpress.org.
 
-    Запуск: uv run pytest tests/test_integration.py -v -m integration
+    Запуск: uv run pytest tests/test_integration.py -v -m integration -o addopts=""
     """
     source = _make_source()
 
     # Получаем список категорий, чтобы найти валидный ID
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
-            f"{source.base_url}{source.api_path}/categories", params={"per_page": 3}
+            f"{source.base_url}{source.api_path}/categories",
+            params={"per_page": 3},
         )
         response.raise_for_status()
         categories = response.json()
@@ -55,14 +56,18 @@ async def test_server_side_category_filtering():
     test_category_name = categories[0]["name"]
 
     print(
-        f"\n🧪 Интеграционный тест: используем категорию '{test_category_name}' (ID={test_category_id})"
+        f"\n🧪 Интеграционный тест: используем категорию "
+        f"'{test_category_name}' (ID={test_category_id})"
     )
 
-    source.include_category_ids = [test_category_id]
+    post_filter = FilterConfig(include_category_ids=[test_category_id])
     parser = WordPressParser(source)
 
     try:
-        posts = await parser.fetch_posts()
+        posts = await parser.fetch_posts(
+            post_filter=post_filter,
+            max_posts=5,
+        )
 
         assert len(posts) > 0, f"Не найдено постов в категории '{test_category_name}'"
         print(f"✅ Найдено {len(posts)} постов в категории '{test_category_name}'")
@@ -78,18 +83,19 @@ async def test_server_side_category_filtering():
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_server_side_tag_filtering():
-    """
-    Интеграционный тест: проверяет, что WP API фильтрует посты по тегам.
+    """Интеграционный тест: WP API фильтрует посты по тегам.
+
     Использует публичный сайт make.wordpress.org.
 
-    Запуск: uv run pytest tests/test_integration.py -v -m integration
+    Запуск: uv run pytest tests/test_integration.py -v -m integration -o addopts=""
     """
     source = _make_source()
 
     # Получаем список тегов
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.get(
-            f"{source.base_url}{source.api_path}/tags", params={"per_page": 3}
+            f"{source.base_url}{source.api_path}/tags",
+            params={"per_page": 3},
         )
         response.raise_for_status()
         tags = response.json()
@@ -101,11 +107,14 @@ async def test_server_side_tag_filtering():
 
     print(f"\n🧪 Интеграционный тест: используем тег '{test_tag_name}' (ID={test_tag_id})")
 
-    source.include_tag_ids = [test_tag_id]
+    post_filter = FilterConfig(include_tag_ids=[test_tag_id])
     parser = WordPressParser(source)
 
     try:
-        posts = await parser.fetch_posts()
+        posts = await parser.fetch_posts(
+            post_filter=post_filter,
+            max_posts=5,
+        )
 
         assert len(posts) > 0, f"Не найдено постов с тегом '{test_tag_name}'"
         print(f"✅ Найдено {len(posts)} постов с тегом '{test_tag_name}'")
