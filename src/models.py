@@ -111,4 +111,3 @@ class Secrets(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     max_bot_token: str
-    max_chat_id: str
