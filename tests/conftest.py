@@ -1,6 +1,6 @@
 import pytest
 
-from src.models import FieldSpec, WPRestSourceConfig
+from src.models import FieldSpec, FilterConfig, WPRestSourceConfig
 
 
 @pytest.fixture
@@ -23,3 +23,9 @@ def source_config():
             FieldSpec(name="link", type="plain"),
         ],
     )
+
+
+@pytest.fixture
+def filter_config():
+    """Пустой фильтр репостера: брать всё."""
+    return FilterConfig()

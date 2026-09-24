@@ -4,7 +4,7 @@ import logging
 import httpx
 
 from .content_transform import get_transformer
-from .models import WPRestSourceConfig
+from .models import FilterConfig, WPRestSourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +16,23 @@ class WordPressParser:
         self.base_url = source.base_url.rstrip("/")
         self.api_url = f"{self.base_url}{source.api_path}"
 
-    async def fetch_posts(self, cutoff_date: str | None = None) -> list[dict]:
-        """Загружает посты через WP REST API с поддержкой пагинации и даты отсечки"""
-        all_posts = []
+    async def fetch_posts(
+        self,
+        cutoff_date: str | None = None,
+        post_filter: FilterConfig | None = None,
+        max_posts: int | None = None,
+    ) -> list[dict]:
+        """Загружает посты через WP REST API.
+
+        `cutoff_date` — брать посты новее этой даты (`after`).
+        `post_filter` — фильтры репостера (категории, теги).
+        Если None — пустой FilterConfig (брать всё).
+        `max_posts` — жёсткий лимит на количество возвращаемых
+        постов. Пагинация останавливается, как только набрано.
+        """
+        post_filter = post_filter or FilterConfig()
+
+        all_posts: list[dict] = []
         params = {
             "_embed": True,
             "orderby": "date",
@@ -27,10 +41,10 @@ class WordPressParser:
         }
         if cutoff_date:
             params["after"] = cutoff_date
-        if self.source.include_category_ids:
-            params["categories"] = ",".join(map(str, self.source.include_category_ids))
-        if self.source.include_tag_ids:
-            params["tags"] = ",".join(map(str, self.source.include_tag_ids))
+        if post_filter.include_category_ids:
+            params["categories"] = ",".join(map(str, post_filter.include_category_ids))
+        if post_filter.include_tag_ids:
+            params["tags"] = ",".join(map(str, post_filter.include_tag_ids))
 
         for page in range(1, self.source.max_pages + 1):
             params["page"] = page
@@ -51,7 +65,8 @@ class WordPressParser:
 
             if not success:
                 logger.error(
-                    f"Не удалось загрузить страницу {page} после 3 попыток. Останавливаем пагинацию."
+                    f"Не удалось загрузить страницу {page} после 3 попыток. "
+                    f"Останавливаем пагинацию."
                 )
                 break
 
@@ -59,18 +74,20 @@ class WordPressParser:
                 break
 
             for post in posts:
-                if self._should_exclude(post):
+                if self._should_exclude(post, post_filter):
                     continue
                 formatted = self._format_post(post)
                 if formatted is not None:
                     all_posts.append(formatted)
+                    if max_posts is not None and len(all_posts) >= max_posts:
+                        return all_posts
 
             if len(posts) < self.source.per_page:
                 break
 
         return all_posts
 
-    def _should_exclude(self, post: dict) -> bool:
+    def _should_exclude(self, post: dict, post_filter: FilterConfig) -> bool:
         terms = post.get("_embedded", {}).get("wp:term", [])
         post_category_ids = []
         post_tag_ids = []
@@ -83,8 +100,8 @@ class WordPressParser:
             elif taxonomy == "post_tag":
                 post_tag_ids = [t["id"] for t in term_list]
         return any(
-            cat_id in post_category_ids for cat_id in self.source.exclude_category_ids
-        ) or any(tag_id in post_tag_ids for tag_id in self.source.exclude_tag_ids)
+            cat_id in post_category_ids for cat_id in post_filter.exclude_category_ids
+        ) or any(tag_id in post_tag_ids for tag_id in post_filter.exclude_tag_ids)
 
     def _extract_image(self, post: dict) -> str | None:
         embedded = post.get("_embedded", {})
@@ -105,7 +122,9 @@ class WordPressParser:
         """Извлекает поля из поста согласно source.fields.
 
         Падает, если поле из fields отсутствует в ответе API:
-        это аномалия источника, а не норма.
+        это аномалия источника, а не норма (ADR 0028).
+        `check_sources` в main.py ловит ValueError на уровне
+        источника, сервис не падает.
         """
         if "guid" not in post:
             logger.warning(f"⚠️  Пропущен пост без 'guid': {post}")
