@@ -163,6 +163,17 @@ def load_settings() -> tuple[AppConfig, Secrets]:
 явно (не полагаемся на транзитивную зависимость `pydantic-settings`)
 [citation:5].
 
+**Приоритет источников.** `load_dotenv()` по умолчанию
+не перезаписывает уже установленные переменные окружения
+(`override=False`). Если `VK_ACCESS_TOKEN_<NAME>` уже есть
+в окружении процесса — например, systemd `EnvironmentFile=`
+(см. `deploy/wp-reposter.service`) или docker `environment`
+(Этап 4) — он побеждает значение из `.env`.
+
+Это правильно: реальное окружение приоритетнее файла.
+При отладке «почему не тот токен» — проверяйте
+`env | grep VK_ACCESS_TOKEN`, а не только `.env`.
+
 **Альтернатива (отклонена):** один `VK_ACCESS_TOKEN` на все
 сообщества. Отклонено: токен VK привязан к конкретному сообществу,
 один токен не может постить в два сообщества.
@@ -175,6 +186,7 @@ def load_settings() -> tuple[AppConfig, Secrets]:
 
 **Альтернатива (отклонена):** кастомный `SettingsSource` для
 `pydantic-settings`. Отклонено: overkill для одного метода.
+
 
 ### 4. Пакет `src/exporters/`
 

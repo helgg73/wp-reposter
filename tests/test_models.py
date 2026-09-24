@@ -11,6 +11,7 @@ from src.models import (
     PostBlock,
     ReposterChannelConfig,
     ReposterConfig,
+    Secrets,
     VkChannelConfig,
     WPRestSourceConfig,
 )
@@ -513,3 +514,47 @@ class TestAppConfig:
         )
         assert isinstance(config.channels[0], MaxChannelConfig)
         assert isinstance(config.channels[1], VkChannelConfig)
+
+
+# ---------------------------------------------------------------------------
+# Secrets.vk_token()
+# ---------------------------------------------------------------------------
+
+
+class TestVkToken:
+    """`Secrets.vk_token()`: динамическое чтение VK-токенов."""
+
+    def test_returns_token_from_env(self, monkeypatch):
+        monkeypatch.setenv("VK_ACCESS_TOKEN_VK_MAIN", "secret-token-123")
+        secrets = Secrets(max_bot_token="dummy")
+        assert secrets.vk_token("vk_main") == "secret-token-123"
+
+    def test_uppercases_channel_name(self, monkeypatch):
+        """Имя канала в нижнем регистре, ключ — в верхнем."""
+        monkeypatch.setenv("VK_ACCESS_TOKEN_VK_NEWS", "news-token")
+        secrets = Secrets(max_bot_token="dummy")
+        assert secrets.vk_token("vk_news") == "news-token"
+
+    def test_raises_when_missing(self, monkeypatch):
+        monkeypatch.delenv("VK_ACCESS_TOKEN_VK_MAIN", raising=False)
+        secrets = Secrets(max_bot_token="dummy")
+        with pytest.raises(ValueError) as exc_info:
+            secrets.vk_token("vk_main")
+        message = str(exc_info.value)
+        assert "vk_main" in message
+        assert "VK_ACCESS_TOKEN_VK_MAIN" in message
+
+    def test_raises_when_empty(self, monkeypatch):
+        """Пустая строка — тоже «не задан»."""
+        monkeypatch.setenv("VK_ACCESS_TOKEN_VK_MAIN", "")
+        secrets = Secrets(max_bot_token="dummy")
+        with pytest.raises(ValueError):
+            secrets.vk_token("vk_main")
+
+    def test_different_channels_independent(self, monkeypatch):
+        """Два канала — два токена, не пересекаются."""
+        monkeypatch.setenv("VK_ACCESS_TOKEN_VK_MAIN", "main-token")
+        monkeypatch.setenv("VK_ACCESS_TOKEN_VK_NEWS", "news-token")
+        secrets = Secrets(max_bot_token="dummy")
+        assert secrets.vk_token("vk_main") == "main-token"
+        assert secrets.vk_token("vk_news") == "news-token"

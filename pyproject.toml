@@ -7,6 +7,7 @@ dependencies = [
     "httpx>=0.27.0",
     "pydantic>=2.7.0",
     "pydantic-settings>=2.2.0",
+    "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
     "maxapi>=1.2.0",
     "filelock>=3.32.7",

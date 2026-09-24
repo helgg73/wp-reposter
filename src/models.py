@@ -1,3 +1,4 @@
+import os
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -129,3 +130,23 @@ class Secrets(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     max_bot_token: str
+
+    def vk_token(self, channel_name: str) -> str:
+        """Возвращает токен VK для канала по его имени.
+
+        Ключ в окружении: `VK_ACCESS_TOKEN_<NAME>`, где `<NAME>` —
+        имя канала в верхнем регистре. Имя канала уже ограничено
+        шаблоном `^[a-z][a-z0-9_]*$` (ADR 0030, п. 4), поэтому
+        `.upper()` однозначен и безопасен.
+
+        Бросает `ValueError`, если токен не задан. Вызывается
+        из `VkExporter` при создании — fail-fast до первого поста
+        (ADR 0022, п. 3).
+        """
+        key = f"VK_ACCESS_TOKEN_{channel_name.upper()}"
+        value = os.environ.get(key)
+        if not value:
+            raise ValueError(
+                f"Не задан токен для VK-канала '{channel_name}': {key}. Добавьте его в .env."
+            )
+        return value

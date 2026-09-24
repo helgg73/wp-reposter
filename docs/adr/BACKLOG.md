@@ -47,7 +47,7 @@
 
 | # | ID | Задача | ADR | Статус |
 |---|----|--------|-----|--------|
-| 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества | — | Done |
+| 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества | — | ✅ Done |
 | 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | Todo |
 | 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | Todo |
 | 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` | 0020, 0022 | Todo |
@@ -197,6 +197,11 @@
 > секрет. Триггер возврата — второй динамический секрет (например,
 > токены Telegram по имени канала) или требование единого источника
 > настроек.
+
+> Приоритет: реальное окружение процесса (systemd `EnvironmentFile=`,
+> docker `environment`) побеждает `.env` — `load_dotenv()` не
+> перезаписывает уже установленные переменные. Это правильно,
+> но стоит помнить при отладке.
 
 > **TD-14.** `tests/conftest.py` в фикстуре `source_config` передаёт
 > в `WPRestSourceConfig` поля `include_category_ids`,
