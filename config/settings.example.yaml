@@ -40,6 +40,7 @@ channels:
   #   name: vk_main
   #   enabled: true
   #   group_id: 123456789
+
 reposters:
   # Имя репостера: только [a-z0-9_], начинается с буквы.
   # Используется в пути data/state/<reposter>/.

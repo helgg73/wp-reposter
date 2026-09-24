@@ -15,7 +15,7 @@
 | 2c | Композиция поста и модуль трансформаций | ✅ Done | content_transform, validation, WPRestSourceConfig |
 | 2d | Обрезка текста по `max_length` | ✅ Done | content_transform |
 | 3a | Мультиканальность и модель репостера | 🟡 В работе | ADR 0030 |
-| 3b | Интеграция с ВКонтакте | 🟡 В работе | VK API 5.199, vkbottle, python-dotenv |
+| 3b | Интеграция с ВКонтакте | ✅ Done | VK API 5.199, vkbottle, python-dotenv |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
 

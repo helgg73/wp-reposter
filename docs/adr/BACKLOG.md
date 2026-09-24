@@ -18,7 +18,7 @@
 | 2c | [0028-content-transform-and-post-composition.md](0028-content-transform-and-post-composition.md) | ✅ Done |
 | 2d | [0029-truncate-by-max-length.md](0029-truncate-by-max-length.md) | ✅ Done |
 | 3a | [0030-multichannel-and-reposter-model.md](0030-multichannel-and-reposter-model.md) | ✅ Done |
-| 3b | [0022-adr-vk-api.md](0022-adr-vk-api.md) | 🟡 In Progress |
+| 3b | [0022-adr-vk-api.md](0022-adr-vk-api.md) | ✅ Done |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
 | 5 | [0019-stage-5-advanced-ui.md](0019-stage-5-advanced-ui.md) | ⚪ Planned |
 
@@ -34,6 +34,7 @@
 | 2c | S2c-01…S2c-06 | 0028 | ✅ Done |
 | 2d | S2d-01…S2d-05 | 0029 | ✅ Done |
 | 3a | S3a-01…S3a-15 | 0030 | ✅ Done |
+| 3b | S3b-01…S3b-06 | 0022 | ✅ Done |
 
 Детали — в соответствующих stage-файлах и в истории изменений ниже.
 
@@ -42,7 +43,7 @@
 > `html` в `src/content_transform.py`. Новые тесты — в
 > `tests/test_content_transform.py`.
 
-## Этап 3b (In Progress) — [0022](0022-adr-vk-api.md)
+## Этап 3b (Done) — [0022](0022-adr-vk-api.md)
 Интеграция с ВКонтакте.
 
 | # | ID | Задача | ADR | Статус |
@@ -51,9 +52,9 @@
 | 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | ✅ Done |
 | 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | ✅ Done |
 | 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` | 0020, 0022 | ✅ Done |
-| 4b | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях | 0005, 0022 | Todo |
-| 5 | S3b-05 | Тесты на `VkExporter` | 0022 | Todo |
-| 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | Todo |
+| 4b | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях | 0005, 0022 | ✅ Done |
+| 5 | S3b-05 | Тесты на `VkExporter` | 0022 | ✅ Done |
+| 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | ✅ Done |
 
 **Логика порядка:**
 1. S3b-01 — ADR 0022 до кода. ✅ Done.
@@ -161,11 +162,13 @@
 > но без HTML-специфики. Возможно, вынести общую функцию.
 
 > **TD-09.** Сейчас `validation.py` проверяет только наличие
-> полей и доступность API. Проверка прав бота (MAX: админ канала;
-> VK: права токена `wall`, `photos`, `manage` — ADR 0022, п. 6) —
-> отдельная задача. Делать как CLI-проверку по аналогии с
+> полей и доступность API.
+> Проверка прав бота (MAX: админ канала; VK: права токена
+> `wall`, `photos` — ADR 0022, п. 6; `manage` для `wall.post`
+> не нужен) — отдельная задача.
+> Делать как CLI-проверку по аналогии с
 > `validate_source`, не при старте (fail-fast не должен зависеть
-> от сети).
+> от сети). 
 
 > **TD-10.** В ADR 0030 концепция называется `cutoff_date`,
 > в коде поле — `last_processed_date` (наследие ADR 0009).
@@ -250,3 +253,4 @@
 | 2026-09-24 | TD-14: `tests/conftest.py` передаёт мёртвые поля `WPRestSourceConfig`. Почистить. |
 | 2026-09-24 | ADR 0022 → Accepted. S3b-04 разбит на S3b-04a (переезд) и S3b-04b (VkExporter). |
 | 2026-09-24 | TD-15: дублирование `format_post()` между `MaxExporter` и `VkExporter`. Вынос в общий класс — при расхождении или третьем канале. |
+| 2026-09-24 | Этап 3b закрыт: S3b-01…S3b-06 выполнены. VkExporter (текст) работает, ручная проверка пройдена. ADR 0022 → Accepted. |
