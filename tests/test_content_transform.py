@@ -218,6 +218,10 @@ class TestTruncate:
     """Тесты на функцию `truncate` (ADR 0029)."""
 
     # --- Граничные условия ---
+    def test_zero_max_length_words_explicit_returns_unchanged(self):
+        """Явный режим words, max_length = 0 — весь текст."""
+        text = "Первый абзац\n\nВторой абзац"
+        assert truncate(text, 0, mode="words") == text
 
     def test_zero_max_length_returns_unchanged(self):
         """max_length = 0 → без ограничений."""
@@ -336,3 +340,62 @@ class TestTruncate:
         result = truncate(text, 55)
         assert "…" not in result
         assert "..." not in result
+
+
+class TestTruncateFirstParagraph:
+    """Тесты на режим `first_paragraph` (S2e-01, ADR 0029)."""
+
+    def test_max_length_zero_returns_first_paragraph(self):
+        """max_length = 0 = «без лимита длины», но режим
+        first_paragraph всё равно берёт только первый абзац."""
+        text = "Первый абзац\n\nВторой абзац"
+        assert truncate(text, 0, mode="first_paragraph") == "Первый абзац"
+
+    def test_max_length_zero_single_paragraph_returns_whole(self):
+        """Один абзац, max_length = 0, режим first_paragraph —
+        возвращаем весь текст (он и есть первый абзац)."""
+        text = "Единственный абзац без границ"
+        assert truncate(text, 0, mode="first_paragraph") == text
+
+    def test_text_shorter_than_limit_returns_first_paragraph(self):
+        """Текст короче лимита, но режим first_paragraph —
+        всё равно только первый абзац.
+
+        Лимит не отменяет режим: автор выбрал «только лид» —
+        значит, второй абзац не показываем при любой длине.
+        """
+        text = "Первый\n\nВторой"
+        assert truncate(text, 100, mode="first_paragraph") == "Первый"
+
+    def test_single_paragraph_short_text_returns_whole(self):
+        """Один абзац, текст короче лимита — режим не режет."""
+        text = "Первый"
+        assert truncate(text, 100, mode="first_paragraph") == "Первый"
+
+    def test_first_paragraph_fits(self):
+        text = "Лид\n\nОстальное"
+        assert truncate(text, 10, mode="first_paragraph") == "Лид"
+
+    def test_first_paragraph_truncated_by_word(self):
+        text = "Денис Паслер подписал распоряжение\n\nВторой абзац"
+        assert truncate(text, 20, mode="first_paragraph") == "Денис Паслер"
+
+    def test_first_word_does_not_fit(self):
+        text = "Денис Паслер\n\nВторой"
+        assert truncate(text, 3, mode="first_paragraph") == ""
+
+    def test_no_ellipsis(self):
+        text = "Денис Паслер подписал распоряжение\n\nВторой"
+        result = truncate(text, 20, mode="first_paragraph")
+        assert "…" not in result
+        assert "..." not in result
+
+    def test_single_paragraph_no_break(self):
+        """Один абзац — ведёт себя как words для одного абзаца."""
+        text = "Денис Паслер подписал распоряжение"
+        assert truncate(text, 20, mode="first_paragraph") == "Денис Паслер"
+
+    def test_default_mode_is_words(self):
+        """Без указания mode — обратная совместимость."""
+        text = "Первый\n\nВторой"
+        assert truncate(text, 100) == "Первый\n\nВторой"

@@ -27,12 +27,18 @@ class PostBlock(BaseModel):
 
     `max_length` обязателен. Значение 0 — явный маркер
     «без ограничений» (см. ADR 0028, п. 4).
+
+    `truncate_mode` управляет алгоритмом обрезки (ADR 0029):
+      - `"words"` — накапливаем абзацы и слова, пока влезает;
+      - `"first_paragraph"` — берём только первый абзац,
+        обрезаем по слову.
     """
 
     prefix: str = ""
     field: str
     postfix: str = ""
     max_length: int
+    truncate_mode: Literal["words", "first_paragraph"] = "words"
 
 
 class FilterConfig(BaseModel):

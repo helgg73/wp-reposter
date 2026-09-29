@@ -79,28 +79,50 @@ def transform_html(text: str) -> str:
     return text
 
 
-def truncate(text: str, max_length: int) -> str:
+def truncate(text: str, max_length: int, mode: str = "words") -> str:
     """Обрезает текст по лимиту, сохраняя целые слова.
 
-    Алгоритм (ADR 0029):
-      1. Если max_length <= 0 — текст без изменений.
-      2. Если текст короче лимита — без изменений.
-      3. Разбиваем на абзацы по \\n\\n, идём слева направо.
-      4. Внутри абзаца — по словам. Перед каждым словом
-         разделитель: пробел внутри абзаца, \\n\\n на границе.
-      5. Если добавление слова превышает лимит — стоп.
-      6. Первое слово не влезает — пустая строка.
-      7. Висящий \\n\\n в конце не остаётся.
-      8. Многоточие не добавляется.
+    Режимы (ADR 0029):
+      - `words`: `max_length <= 0` — без ограничений; иначе
+        накапливаем абзацы и слова, пока влезает.
+      - `first_paragraph`: берём только первый абзац.
+        `max_length <= 0` — весь первый абзац; иначе обрезаем
+        его по словам.
+
+    `max_length` и `mode` — независимые оси. `max_length`
+    управляет длиной, `mode` — тем, какой фрагмент брать.
+    `max_length = 0` не отменяет режим.
 
     Мягкая обрезка: результат может быть короче лимита
-    на длину последнего не влезшего слова.
+    на длину последнего не влезшего слова. Многоточие
+    не добавляется.
     """
+    if mode == "first_paragraph":
+        first = text.split("\n\n", 1)[0]
+        if max_length <= 0 or len(first) <= max_length:
+            return first
+        return _truncate_by_words(first, max_length)
+
     if max_length <= 0:
         return text
     if len(text) <= max_length:
         return text
+    return _truncate_by_paragraphs(text, max_length)
 
+
+def _truncate_by_words(text: str, max_length: int) -> str:
+    """Обрезка одного абзаца по словам."""
+    result = ""
+    for word in text.split():
+        candidate = f"{result} {word}" if result else word
+        if len(candidate) > max_length:
+            return result
+        result = candidate
+    return result
+
+
+def _truncate_by_paragraphs(text: str, max_length: int) -> str:
+    """Обрезка многоабзацного текста (режим `words`)."""
     result = ""
     paragraphs = text.split("\n\n")
 

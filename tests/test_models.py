@@ -77,6 +77,26 @@ class TestPostBlock:
         assert block.max_length == 0
 
 
+class TestPostBlockTruncateMode:
+    """Поле `truncate_mode` в `PostBlock` (S2e-01)."""
+
+    def test_default_is_words(self):
+        block = PostBlock(field="link", max_length=0)
+        assert block.truncate_mode == "words"
+
+    def test_first_paragraph(self):
+        block = PostBlock(
+            field="excerpt.rendered",
+            max_length=300,
+            truncate_mode="first_paragraph",
+        )
+        assert block.truncate_mode == "first_paragraph"
+
+    def test_invalid_mode_raises(self):
+        with pytest.raises(ValidationError):
+            PostBlock(field="link", max_length=0, truncate_mode="sentences")
+
+
 # ---------------------------------------------------------------------------
 # FilterConfig
 # ---------------------------------------------------------------------------
