@@ -2,6 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-18
+- **Updated:** 2026-09-29
 - **Related:** ADR 0028 (модуль трансформаций и композиция поста), ADR 0020 (структура модулей)
 
 ## Context
@@ -192,3 +193,60 @@ ADR 0028 не восстанавливать `…` на месте маркер�
 - ADR 0028 — не редактируется, только дополняется ссылкой
   на 0029 в разделе «Обрезка `max_length` — отдельная задача».
 - ADR 0012, ADR 0024 — не затрагиваются.
+
+## Расширение: режим `first_paragraph` (S2e-01)
+
+### Context
+
+`truncate()` в режиме `words` собирает текст по абзацам, пока
+влезает в `max_length`. Результат может быть многоабзацным.
+Для СМИ логичнее постить только первый абзац (лид).
+
+`truncate_mode` — не про длину, а про то, **что** брать.
+`max_length` управляет длиной, `mode` — фрагментом. Это
+независимые оси: `max_length = 0` не отменяет режим.
+
+### Decision
+
+Добавлен параметр `truncate_mode: Literal["words", "first_paragraph"]`
+в `PostBlock` со значением по умолчанию `"words"`.
+
+Режим `first_paragraph`:
+1. Берём только первый абзац (`text.split("\n\n")[0]`).
+2. Если `max_length <= 0` — возвращаем весь первый абзац.
+3. Если первый абзац ≤ `max_length` — возвращаем как есть.
+4. Если длиннее — обрезаем по слову.
+5. Остальные абзацы отбрасываем.
+
+### Consequences
+
+**Положительные:**
+- Автор конфига выбирает, постить лид или собирать текст
+  из нескольких абзацев.
+- Обратная совместимость: старые конфиги работают без изменений.
+
+**Отрицательные:**
+- Два режима — два пути в `truncate()`. Покрыто тестами.
+- `max_length = 0` в режиме `first_paragraph` возвращает
+  первый абзац целиком, а не весь текст. Это отличается
+  от поведения `words` при `max_length = 0` — легко
+  перепутать. Зафиксировано в docstring `truncate`
+  и тестами.
+
+### Done criteria (расширение `first_paragraph`, S2e-01)
+
+- [x] `PostBlock.truncate_mode` с `Literal["words",
+      "first_paragraph"]`, default `"words"`.
+- [x] `truncate(text, max_length, mode="words")` поддерживает
+      оба режима.
+- [x] `truncate` с `mode="first_paragraph"` и `max_length <= 0`
+      возвращает только первый абзац.
+- [x] `MaxExporter.format_post` пробрасывает `block.truncate_mode`.
+- [x] `VkExporter.format_post` пробрасывает `block.truncate_mode`.
+- [x] Тесты `TestTruncateFirstParagraph` покрывают режим.
+- [x] Тесты `TestPostBlockTruncateMode` покрывают модель.
+- [x] `config/settings.example.yaml` содержит пример
+      с `truncate_mode: first_paragraph`.
+- [x] `uv run ruff check --fix` проходит.
+- [x] `uv run ruff format` проходит.
+- [x] `uv run pytest` проходит.

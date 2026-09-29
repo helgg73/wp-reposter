@@ -35,16 +35,19 @@ class MaxExporter:
         Пропускает блоки с пустыми полями. Если все блоки пусты —
         возвращает None: постить нечего.
 
-        Обрезка по max_length (ADR 0029) применяется после
-        трансформации поля и до добавления префикса/постфикса.
-        max_length <= 0 — без обрезки.
+        Обрезка (ADR 0029) применяется после трансформации поля
+        и до добавления префикса/постфикса. Алгоритм зависит
+        от `block.truncate_mode`:
+        - `words`: `max_length <= 0` — без ограничений;
+        - `first_paragraph`: берём первый абзац, `max_length <= 0` —
+        весь первый абзац.
         """
         parts: list[str] = []
         for block in self.template:
             value = entry.get(block.field, "")
             if not value:
                 continue
-            value = truncate(value, block.max_length)
+            value = truncate(value, block.max_length, block.truncate_mode)
             if not value:
                 continue
             parts.append(f"{block.prefix}{value}{block.postfix}")

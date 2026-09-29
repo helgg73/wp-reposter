@@ -189,3 +189,42 @@ class TestFormatPostTruncation:
         }
         result = exporter.format_post(entry)
         assert result == "https://example.com"
+
+    def test_truncate_mode_passed_to_truncate(self, max_config):
+        """`truncate_mode` из блока пробрасывается в `truncate`."""
+        template = [
+            PostBlock(
+                prefix="",
+                field="title.rendered",
+                postfix="",
+                max_length=20,
+                truncate_mode="first_paragraph",
+            ),
+        ]
+        exporter = MaxExporter(
+            config=max_config,
+            template=template,
+            bot_token="dummy",
+        )
+        entry = {"title.rendered": "Денис Паслер подписал\n\nВторой абзац"}
+        result = exporter.format_post(entry)
+        assert result == "Денис Паслер"
+
+    def test_default_truncate_mode_is_words(self, max_config):
+        """Без указания truncate_mode — работает как `words`."""
+        template = [
+            PostBlock(
+                prefix="",
+                field="title.rendered",
+                postfix="",
+                max_length=100,
+            ),
+        ]
+        exporter = MaxExporter(
+            config=max_config,
+            template=template,
+            bot_token="dummy",
+        )
+        entry = {"title.rendered": "Первый\n\nВторой"}
+        result = exporter.format_post(entry)
+        assert result == "Первый\n\nВторой"

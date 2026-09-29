@@ -108,6 +108,43 @@ class TestFormatPostTruncation:
         entry = {"title.rendered": "Длинный текст без ограничений"}
         assert exporter.format_post(entry) == "Длинный текст без ограничений"
 
+    def test_truncate_mode_passed_to_truncate(self, vk_config, vk_api_mock):
+        """`truncate_mode` из блока пробрасывается в `truncate`."""
+        template = [
+            PostBlock(
+                prefix="",
+                field="title.rendered",
+                postfix="",
+                max_length=20,
+                truncate_mode="first_paragraph",
+            ),
+        ]
+        exporter = VkExporter(
+            config=vk_config,
+            template=template,
+            access_token="dummy",
+        )
+        entry = {"title.rendered": "Денис Паслер подписал\n\nВторой абзац"}
+        assert exporter.format_post(entry) == "Денис Паслер"
+
+    def test_default_truncate_mode_is_words(self, vk_config, vk_api_mock):
+        """Без указания truncate_mode — работает как `words`."""
+        template = [
+            PostBlock(
+                prefix="",
+                field="title.rendered",
+                postfix="",
+                max_length=100,
+            ),
+        ]
+        exporter = VkExporter(
+            config=vk_config,
+            template=template,
+            access_token="dummy",
+        )
+        entry = {"title.rendered": "Первый\n\nВторой"}
+        assert exporter.format_post(entry) == "Первый\n\nВторой"
+
 
 class TestExportDisabled:
     """enabled=False — постинг не выполняется."""

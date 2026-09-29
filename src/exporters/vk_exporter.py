@@ -59,7 +59,7 @@ class VkExporter:
             value = entry.get(block.field, "")
             if not value:
                 continue
-            value = truncate(value, block.max_length)
+            value = truncate(value, block.max_length, block.truncate_mode)
             if not value:
                 continue
             parts.append(f"{block.prefix}{value}{block.postfix}")
