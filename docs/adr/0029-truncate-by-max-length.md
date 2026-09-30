@@ -233,6 +233,27 @@ ADR 0028 не восстанавливать `…` на месте маркер�
   перепутать. Зафиксировано в docstring `truncate`
   и тестами.
 
+### Ограничение: `first_paragraph` зависит от `\n\n` в обработанном поле
+
+`first_paragraph` делит текст по `\n\n`. Это работает
+с **обработанным** полем (после `transform_html`), а не
+с сырым ответом API.
+
+Что даёт `\n\n` после `transform_html`:
+
+- `content.rendered` — абзацы в `<p>...</p>`, между ними `\n`.
+  `transform_html` при удалении тегов оставляет `\n`,
+  нормализация даёт `\n\n`. Абзацы сохраняются.
+- `excerpt.rendered` — у некоторых тем (например, NewsPaper)
+  приходит одним `<p>` без `\n` внутри. После `transform_html`
+  — одна строка. `first_paragraph` не даёт эффекта.
+- `plain`-поля — зависит от источника.
+
+Это **свойство данных**, не баг `truncate` или
+`transform_html`. Автор конфига выбирает поле, подходящее
+под задачу: для лида — `content.rendered`, для короткого
+анонса — `excerpt.rendered`.
+
 ### Done criteria (расширение `first_paragraph`, S2e-01)
 
 - [x] `PostBlock.truncate_mode` с `Literal["words",

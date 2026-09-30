@@ -2,7 +2,7 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-29
+- **Updated:** 2026-09-30
 
 Плоский список задач. Формат ID: `S<этап>-<номер>`.
 
@@ -17,7 +17,7 @@
 | 2b | [0025-autonomous-run-systemd.md](0025-autonomous-run-systemd.md) | ✅ Done |
 | 2c | [0028-content-transform-and-post-composition.md](0028-content-transform-and-post-composition.md) | ✅ Done |
 | 2d | [0029-truncate-by-max-length.md](0029-truncate-by-max-length.md) | ✅ Done |
-| 2e | — (расширение ADR 0029) | 🟡 In Progress |
+| 2e | — (расширение ADR 0029) | ✅ Done |
 | 3a | [0030-multichannel-and-reposter-model.md](0030-multichannel-and-reposter-model.md) | ✅ Done |
 | 3b | [0022-adr-vk-api.md](0022-adr-vk-api.md) | ✅ Done |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
@@ -34,6 +34,7 @@
 | 2b | S2b-01…S2b-19 | 0025, 0026, 0027 | ✅ Done |
 | 2c | S2c-01…S2c-06 | 0028 | ✅ Done |
 | 2d | S2d-01…S2d-05 | 0029 | ✅ Done |
+| 2e | S2e-01 | 0029 | ✅ Done |
 | 3a | S3a-01…S3a-15 | 0030 | ✅ Done |
 | 3b | S3b-01…S3b-06 | 0022 | ✅ Done |
 
@@ -44,82 +45,12 @@
 > `html` в `src/content_transform.py`. Новые тесты — в
 > `tests/test_content_transform.py`.
 
-## Этап 2e (In Progress) — расширение [ADR 0029](0029-truncate-by-max-length.md)
-Режим обрезки «по первому абзацу».
-
-| # | ID | Задача | ADR | Статус |
-|---|----|--------|-----|--------|
-| 1 | S2e-01 | Режим обрезки «по первому абзацу»: `truncate_mode` в `PostBlock`, расширение `truncate()`, тесты | 0029 | Todo |
-
-**Что делаем (расширение ADR 0029):**
-
-Сейчас `truncate()` собирает текст по абзацам и словам, пока влезает
-в `max_length`. Результат может быть многоабзацным. Для СМИ логичнее
-постить только первый абзац (лид) — законченное высказывание.
-
-**Новый режим `first_paragraph`:**
-
-1. Берём только первый абзац (`text.split("\n\n")[0]`).
-2. Если он ≤ `max_length` — возвращаем как есть.
-3. Если длиннее — обрезаем по слову (текущая логика).
-4. Остальные абзацы отбрасываем.
-
-**Параметр:** `truncate_mode: Literal["words", "first_paragraph"]`
-в `PostBlock` со значением по умолчанию `"words"` (обратная
-совместимость).
-
-**Где менять:**
-
-- `src/models.py` — `PostBlock.truncate_mode`.
-- `src/content_transform.py` — `truncate(text, max_length, mode="words")`.
-- `src/exporters/max_exporter.py` — передать `block.truncate_mode`.
-- `src/exporters/vk_exporter.py` — передать `block.truncate_mode`.
-- `tests/test_content_transform.py` — тесты на новый режим.
-- `tests/test_exporter.py` — тесты на проброс `truncate_mode`.
-- `config/settings.example.yaml` — пример с `truncate_mode`.
-- `docs/adr/0029-truncate-by-max-length.md` — дополнить разделом
-  про новый режим.
-
-**Логика порядка:** одна задача, дробить не на что.
-
-**Отложено из Этапа 2e:**
-- Другие режимы обрезки (по предложениям, по лимиту символов и т.п.) —
-  не планируются. Триггер: реальная потребность.
-
-### 4. TD-11 — убрать из техдолга
-
-Было:
-| TD-11 | Режим обрезки «по первому абзацу» (`truncate_mode`) | Нужно постить только лид, без остальных абзацев | 0029, 0030 |
-
-
-## Этап 3b (Done) — [0022](0022-adr-vk-api.md)
-Интеграция с ВКонтакте.
-
-| # | ID | Задача | ADR | Статус |
-|---|----|--------|-----|--------|
-| 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества | — | ✅ Done |
-| 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | ✅ Done |
-| 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | ✅ Done |
-| 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` | 0020, 0022 | ✅ Done |
-| 4b | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях | 0005, 0022 | ✅ Done |
-| 5 | S3b-05 | Тесты на `VkExporter` | 0022 | ✅ Done |
-| 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | ✅ Done |
-
-**Логика порядка:**
-1. S3b-01 — ADR 0022 до кода. ✅ Done.
-2. S3b-02, S3b-03 — модель и секреты.
-3. S3b-04a — переезд `src/exporter.py` → `src/exporters/`
-   (без изменения логики). Проверка: `pytest`, `ruff check`,
-   `grep` по проекту на старые импорты. Отдельный коммит.
-4. S3b-04b — `VkExporter` (текст), `vkbottle` в `pyproject.toml`,
-   ветка в `create_exporter()`. Отдельный коммит.
-5. S3b-05, S3b-06 — тесты и ручная проверка.
-
-**Отложено из Этапа 3b:**
-- Фото в VK → раздел «Этап B» в ADR 0022.
-- Мультипостинг в VK (отложенные посты, `publish_date`) → S5.
-- Проверка прав токена VK → TD-09.
-- Rate limiter per-channel → TD-12.
+> **Правило.** Завершённые этапы не получают отдельных
+> разделов `## Этап N (Done)`. Учёт — в двух местах:
+> сводная таблица «Завершённые этапы» (выше) и stage-файл
+> этапа. Значимое «отложено» — в TD или в соответствующем
+> Planned-этапе. Отдельный Done-раздел дублирует эту
+> информацию и устаревает.
 
 ## Этап 4 (Planned) — [0018](0018-stage-4-web-docker-postgres.md)
 
@@ -306,5 +237,7 @@
 | 2026-09-24 | ADR 0022 → Accepted. S3b-04 разбит на S3b-04a (переезд) и S3b-04b (VkExporter). |
 | 2026-09-24 | TD-15: дублирование `format_post()` между `MaxExporter` и `VkExporter`. Вынос в общий класс — при расхождении или третьем канале. |
 | 2026-09-24 | Этап 3b закрыт: S3b-01…S3b-06 выполнены. VkExporter (текст) работает, ручная проверка пройдена. ADR 0022 → Accepted. |
-| 2026-09-29 | Отказ от `vkbottle` в пользу `httpx` в `VkExporter` |Прояснится: оправдана ли зависимость для одного вызова `wall.post` |
+| 2026-09-29 | TD-16: отказ от `vkbottle` в пользу `httpx` в `VkExporter`. Триггер — прояснится, оправдана ли зависимость для одного вызова `wall.post`. |
 | 2026-09-29 | TD-11 (режим обрезки «по первому абзацу») переведён в отдельный Этап 2e, задача S2e-01. |
+| 2026-09-29 | Этап 2e закрыт: S2e-01 выполнен. Режим обрезки `first_paragraph` работает независимо от `max_length`. ADR 0029 дополнен разделом о расширении. |
+| 2026-09-30 | S2f-01 отменён: excerpt с темой NewsPaper — одна строка без `\n`, `first_paragraph` не даёт эффекта. Решается конфигом (`content.rendered` вместо `excerpt.rendered`), код не менялся. |

@@ -58,8 +58,23 @@ reposters:
             postfix: "\n\n"
           - prefix: ""
             field: excerpt.rendered
+            # max_length в символах. 0 — без ограничений.
             max_length: 300
             postfix: "\n\n"
+            # truncate_mode управляет алгоритмом обрезки (ADR 0029).
+            # Допустимые значения: words (по умолчанию) и first_paragraph.
+            # Отсутствие truncate_mode равнозначно words.
+            #
+            # words — накапливает абзацы и слова, пока влезает в max_length.
+            # first_paragraph — берёт только первый абзац. Если он длиннее
+            # max_length — обрезает по слову. max_length = 0 — без лимита,
+            # но всё равно только первый абзац.
+            #
+            # first_paragraph сработает, если после обработки html-поля
+            # (transform_html) в нём есть \n\n. Для html-поля с абзацами
+            # (<p>...</p>) transform_html превращает границы в \n\n.
+            # Если поле приходит одной строкой без абзацев — режим вернёт
+            # весь текст.
             truncate_mode: first_paragraph   # только лид
           - prefix: "🔗 "
             field: link
