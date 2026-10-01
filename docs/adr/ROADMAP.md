@@ -2,8 +2,8 @@
 
 - **Status:** Active
 - **Date:** 2026-09-15
-- **Updated:** 2026-09-24
-- **Related:** ADR 0001–0030
+- **Updated:** 2026-10-01
+- **Related:** ADR 0001–0031
 
 ## Обзор
 
@@ -14,7 +14,9 @@
 | 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | ✅ Done | systemd, logging, filelock, retry/backoff, pre-commit |
 | 2c | Композиция поста и модуль трансформаций | ✅ Done | content_transform, validation, WPRestSourceConfig |
 | 2d | Обрезка текста по `max_length` | ✅ Done | content_transform |
-| 3a | Мультиканальность и модель репостера | 🟡 В работе | ADR 0030 |
+| 2e | Режим обрезки `first_paragraph` | ✅ Done | content_transform |
+| 2g | Оптимизация запроса к WP REST API | 🟡 В работе | `_fields`, `categories_exclude`, отдельный запрос медиа |
+| 3a | Мультиканальность и модель репостера | ✅ Done | ADR 0030 |
 | 3b | Интеграция с ВКонтакте | ✅ Done | VK API 5.199, vkbottle, python-dotenv |
 | 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
 | 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
@@ -65,6 +67,7 @@ doc/adr/
 ├── 0028-content-transform-and-post-composition.md
 ├── 0029-truncate-by-max-length.md
 ├── 0030-multichannel-and-reposter-model.md
+├── 0031-wp-rest-query-optimization.md
 ├── ROADMAP.md # этот файл
 └── BACKLOG.md
 ```
