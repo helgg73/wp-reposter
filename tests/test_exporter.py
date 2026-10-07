@@ -228,3 +228,21 @@ class TestFormatPostTruncation:
         entry = {"title.rendered": "Первый\n\nВторой"}
         result = exporter.format_post(entry)
         assert result == "Первый\n\nВторой"
+
+
+@pytest.mark.asyncio
+class TestDownloadImage:
+    """`_download_image` различает HTTP-URL и локальный путь (S2g-01b)."""
+
+    async def test_local_file(self, exporter, tmp_path):
+        """Локальный путь → чтение файла."""
+        stub = tmp_path / "stub.png"
+        stub.write_bytes(b"PNG-DATA")
+
+        result = await exporter._download_image(str(stub))
+        assert result == b"PNG-DATA"
+
+    async def test_missing_local_file(self, exporter):
+        """Несуществующий локальный путь → None."""
+        result = await exporter._download_image("/nonexistent/path/file.png")
+        assert result is None

@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import httpx
 from maxapi import Bot
@@ -57,12 +58,25 @@ class MaxExporter:
         return "".join(parts)
 
     async def _download_image(self, image_url: str) -> bytes | None:
+        """Получает байты изображения.
+
+        `image_url` может быть:
+          - HTTP(S)-URL (из WP REST API);
+          - локальный путь (заглушка из static/, ADR 0031).
+        """
         try:
-            response = await self.http_client.get(image_url)
-            response.raise_for_status()
-            return response.content
+            if image_url.startswith(("http://", "https://")):
+                response = await self.http_client.get(image_url)
+                response.raise_for_status()
+                return response.content
+
+            path = Path(image_url)
+            if not path.exists():
+                logger.warning(f"⚠️  Локальный файл не найден: {path}")
+                return None
+            return path.read_bytes()
         except Exception as e:
-            logger.warning(f"⚠️  Не удалось скачать изображение {image_url}: {e}")
+            logger.warning(f"⚠️  Не удалось получить изображение {image_url}: {e}")
             return None
 
     async def export(self, entry: dict, image_url: str | None = None) -> str | None:

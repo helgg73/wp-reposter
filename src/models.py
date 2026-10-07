@@ -55,7 +55,6 @@ class FilterConfig(BaseModel):
 
 class WPRestSourceConfig(BaseModel):
     """Источник типа WP REST API: только про API.
-
     Фильтры — в `ReposterConfig.filter`, не здесь (ADR 0030, п. 2).
     """
 
@@ -63,8 +62,18 @@ class WPRestSourceConfig(BaseModel):
     base_url: str
     api_path: str = "/wp-json/wp/v2"
     featured_image_size: str = "medium"
+    # ^ DEPRECATED. Не используется с ADR 0031.
+    #   Оставлено для обратной совместимости конфигов.
+    #   Медиа тянется как оригинал (source_url). Вернуться,
+    #   если появится клиент с лимитом на размер (TD-17).
     max_pages: int = 3
     per_page: int = 20
+    default_image: str | Literal[False] = False
+    # ^ Путь к файлу-заглушке (относительно корня проекта)
+    #   или False (заглушка отключена). Используется, если
+    #   у поста нет картинки. Пользовательские файлы —
+    #   в static/ (не в git), предустановленные —
+    #   в static/defaults/ (в git).
     fields: list[FieldSpec]
 
 

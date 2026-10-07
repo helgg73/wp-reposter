@@ -317,3 +317,141 @@ class TestFormatPostValidation:
         with pytest.raises(ValueError) as exc_info:
             parser._format_post(post)
         assert "excerpt.rendered" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+class TestExtractImage:
+    """`_extract_image` — медиа отдельным запросом (ADR 0031, S2g-01b)."""
+
+    async def test_fetches_media_from_api(self, respx_mock, source_config):
+        """featured_media > 0 → запрос к /wp/v2/media/<id>?_fields=id,source_url."""
+        source_config.default_image = False
+        media_route = respx_mock.get(
+            f"{source_config.base_url}{source_config.api_path}/media/123"
+        ).respond(json={"id": 123, "source_url": "https://example.com/img.jpg"})
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(123)
+
+        assert result == "https://example.com/img.jpg"
+        assert media_route.called
+        request = media_route.calls[0].request
+        assert request.url.params.get("_fields") == "id,source_url"
+
+        await parser.close()
+
+    async def test_media_source_url_empty_falls_back_to_default(
+        self, respx_mock, source_config, tmp_path
+    ):
+        """source_url пуст → default_image (если файл есть)."""
+        # Создаём временный файл-заглушку
+        stub = tmp_path / "stub.png"
+        stub.write_bytes(b"PNG")
+        source_config.default_image = str(stub)
+
+        respx_mock.get(f"{source_config.base_url}{source_config.api_path}/media/123").respond(
+            json={"id": 123, "source_url": ""}
+        )
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(123)
+
+        assert result == str(stub)
+
+        await parser.close()
+
+    async def test_media_id_zero_uses_default_image(self, source_config, tmp_path):
+        """featured_media = 0 → default_image без запроса к API."""
+        stub = tmp_path / "stub.png"
+        stub.write_bytes(b"PNG")
+        source_config.default_image = str(stub)
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(0)
+
+        assert result == str(stub)
+
+        await parser.close()
+
+    async def test_default_image_false_returns_none(self, source_config):
+        """default_image = False → None."""
+        source_config.default_image = False
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(0)
+
+        assert result is None
+
+        await parser.close()
+
+    async def test_default_image_missing_file_returns_none(self, source_config):
+        """default_image задан, но файла нет → None + WARNING."""
+        source_config.default_image = "static/nonexistent.png"
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(0)
+
+        assert result is None
+
+        await parser.close()
+
+    async def test_media_request_error_falls_back_to_default(
+        self, respx_mock, source_config, tmp_path
+    ):
+        """Ошибка запроса к медиа → fallback на default_image."""
+        stub = tmp_path / "stub.png"
+        stub.write_bytes(b"PNG")
+        source_config.default_image = str(stub)
+
+        respx_mock.get(f"{source_config.base_url}{source_config.api_path}/media/123").respond(
+            status_code=500
+        )
+
+        parser = WordPressParser(source_config)
+        result = await parser._extract_image(123)
+
+        assert result == str(stub)
+
+        await parser.close()
+
+
+@pytest.mark.asyncio
+class TestAttachImages:
+    """`_attach_images` — параллельный сбор медиа (S2g-01b)."""
+
+    async def test_attaches_image_url_to_each_post(self, respx_mock, source_config):
+        """Медиа тянется для каждого поста, кладётся в `_image_url`."""
+        source_config.default_image = False
+
+        respx_mock.get(f"{source_config.base_url}{source_config.api_path}/media/111").respond(
+            json={"id": 111, "source_url": "https://example.com/1.jpg"}
+        )
+        respx_mock.get(f"{source_config.base_url}{source_config.api_path}/media/222").respond(
+            json={"id": 222, "source_url": "https://example.com/2.jpg"}
+        )
+
+        posts = [
+            {"_featured_media": 111, "_image_url": None},
+            {"_featured_media": 222, "_image_url": None},
+        ]
+
+        parser = WordPressParser(source_config)
+        await parser._attach_images(posts)
+
+        assert posts[0]["_image_url"] == "https://example.com/1.jpg"
+        assert posts[1]["_image_url"] == "https://example.com/2.jpg"
+
+        await parser.close()
+
+    async def test_no_media_no_default_sets_none(self, source_config):
+        """featured_media = 0, default_image = False → None."""
+        source_config.default_image = False
+
+        posts = [{"_featured_media": 0, "_image_url": None}]
+
+        parser = WordPressParser(source_config)
+        await parser._attach_images(posts)
+
+        assert posts[0]["_image_url"] is None
+
+        await parser.close()

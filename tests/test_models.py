@@ -167,6 +167,35 @@ class TestWPRestSourceConfig:
         with pytest.raises(ValidationError):
             WPRestSourceConfig(name="Test", base_url="https://example.com")
 
+    def test_default_image_false_by_default(self, minimal_fields):
+        """По умолчанию default_image = False."""
+        source = WPRestSourceConfig(
+            name="Test",
+            base_url="https://example.com",
+            fields=minimal_fields,
+        )
+        assert source.default_image is False
+
+    def test_default_image_path(self, minimal_fields):
+        """default_image = строка пути."""
+        source = WPRestSourceConfig(
+            name="Test",
+            base_url="https://example.com",
+            default_image="static/defaults/stub.png",
+            fields=minimal_fields,
+        )
+        assert source.default_image == "static/defaults/stub.png"
+
+    def test_default_image_true_rejected(self, minimal_fields):
+        """default_image = true → ValidationError (Literal[False])."""
+        with pytest.raises(ValidationError):
+            WPRestSourceConfig(
+                name="Test",
+                base_url="https://example.com",
+                default_image=True,
+                fields=minimal_fields,
+            )
+
 
 # ---------------------------------------------------------------------------
 # MaxChannelConfig

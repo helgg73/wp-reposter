@@ -28,6 +28,26 @@ logger = logging.getLogger(__name__)
 _last_sent_at: float = 0.0
 
 
+def validate_default_images(config: AppConfig) -> None:
+    """Проверяет существование файлов-заглушек (ADR 0031).
+
+    WARNING, не ошибка: файл может быть добавлен позже,
+    или сервис запущен на другой машине.
+    """
+    for source in config.sources:
+        if isinstance(source.default_image, str) and source.default_image:
+            path = Path(source.default_image)
+            if not path.is_absolute():
+                root = Path(__file__).resolve().parent.parent
+                path = root / path
+            if not path.exists():
+                logger.warning(
+                    f"⚠️  Источник '{source.name}': файл-заглушка "
+                    f"'{source.default_image}' не найден. "
+                    f"Посты без картинок будут без изображения."
+                )
+
+
 def setup_logging():
     """Настраивает логирование: файл с ротацией + stdout."""
     root_logger = logging.getLogger()
@@ -214,6 +234,7 @@ async def main():
     logger.info(f"⚙️  Лимит постов из API за раз: {app_config.max_posts_per_fetch}")
 
     validate_or_exit(app_config)
+    validate_default_images(app_config)
 
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()

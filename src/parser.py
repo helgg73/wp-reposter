@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from pathlib import Path
 
 import httpx
 
@@ -18,6 +19,11 @@ _SERVICE_FIELDS = (
     "featured_media",
     "link",
 )
+
+# Лимит одновременных запросов к медиа (ADR 0031).
+# Защита источника от перегрузки при первом запуске
+# (100 постов).
+MEDIA_FETCH_CONCURRENCY = 5
 
 
 class WordPressParser:
@@ -59,6 +65,9 @@ class WordPressParser:
         Фильтрация категорий и тегов — на стороне WP
         (`categories`, `tags`, `categories_exclude`,
         `tags_exclude`).
+
+        После сбора постов параллельно тянет медиа
+        (с ограничением `MEDIA_FETCH_CONCURRENCY`).
         """
         post_filter = post_filter or FilterConfig()
 
@@ -112,23 +121,100 @@ class WordPressParser:
                 if formatted is not None:
                     all_posts.append(formatted)
                     if max_posts is not None and len(all_posts) >= max_posts:
-                        return all_posts
+                        break
+
+            if max_posts is not None and len(all_posts) >= max_posts:
+                break
 
             if len(posts) < self.source.per_page:
                 break
 
+        if all_posts:
+            await self._attach_images(all_posts)
+
         return all_posts
 
-    def _extract_image(self, post: dict) -> str | None:
-        """Возвращает URL картинки или None.
+    async def _attach_images(self, posts: list[dict]) -> None:
+        """Параллельно тянет медиа для постов.
 
-        **Временно (S2g-01a).** Раньше читал
-        `_embedded.wp:featuredmedia`. `_embed` убран
-        (несовместим с `?_fields=`, ADR 0031).
-        Реализация отдельным запросом к /wp/v2/media/<id> —
-        в S2g-01b.
+        Обновляет `_image_url` в каждом entry: URL из WP,
+        путь к локальной заглушке или None.
+
+        Семафор — не более `MEDIA_FETCH_CONCURRENCY` одновременных
+        запросов (защита источника от перегрузки).
         """
-        return None
+        semaphore = asyncio.Semaphore(MEDIA_FETCH_CONCURRENCY)
+
+        async def fetch_one(entry: dict) -> None:
+            async with semaphore:
+                media_id = entry.get("_featured_media", 0) or 0
+                entry["_image_url"] = await self._extract_image(media_id)
+
+        await asyncio.gather(*(fetch_one(p) for p in posts))
+
+    async def _extract_image(self, media_id: int) -> str | None:
+        """Возвращает URL картинки или путь к заглушке.
+
+        Порядок (ADR 0031):
+          1. Если media_id > 0 — запрос к /wp/v2/media/<id>,
+             взять source_url.
+          2. Если source_url пуст или media_id = 0 —
+             использовать source.default_image (локальный файл).
+          3. Если default_image=False или файл отсутствует —
+             вернуть None.
+        """
+        if media_id:
+            source_url = await self._fetch_media_source_url(media_id)
+            if source_url:
+                return source_url
+
+        return self._default_image()
+
+    async def _fetch_media_source_url(self, media_id: int) -> str | None:
+        """Запрос к /wp/v2/media/<id>?_fields=id,source_url.
+
+        `_fields=` для медиа работает только на верхнем уровне
+        (вложенные пути игнорируются, ADR 0031) — поэтому
+        запрашиваем `id,source_url`, а не `media_details.sizes`.
+        `source_url` — оригинал (проверено, == full).
+        """
+        try:
+            response = await self.client.get(
+                f"{self.api_url}/media/{media_id}",
+                params={"_fields": "id,source_url"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("source_url") or None
+        except Exception as e:
+            logger.warning(f"⚠️  Не удалось получить медиа {media_id}: {e}")
+            return None
+
+    def _default_image(self) -> str | None:
+        """Возвращает абсолютный путь к заглушке или None.
+
+        `default_image` — строка с путём (относительно корня
+        проекта) или False. Если файл отсутствует — None
+        + WARNING.
+        """
+        if not isinstance(self.source.default_image, str) or not self.source.default_image:
+            return None
+
+        path = Path(self.source.default_image)
+        if not path.is_absolute():
+            # Относительный путь — от корня проекта
+            # (src/parser.py → src → корень).
+            root = Path(__file__).resolve().parent.parent
+            path = root / path
+
+        if not path.exists():
+            logger.warning(
+                f"⚠️  Источник '{self.source.name}': файл-заглушка "
+                f"'{self.source.default_image}' не найден."
+            )
+            return None
+
+        return str(path)
 
     def _format_post(self, post: dict) -> dict | None:
         """Извлекает поля из поста согласно source.fields.
@@ -137,6 +223,9 @@ class WordPressParser:
         это аномалия источника, а не норма (ADR 0028).
         `check_sources` в main.py ловит ValueError на уровне
         источника, сервис не падает.
+
+        `_image_url` здесь — None. Реальная картинка
+        подтягивается позже в `_attach_images` (ADR 0031).
         """
         if "guid" not in post:
             logger.warning(f"⚠️  Пропущен пост без 'guid': {post}")
@@ -153,7 +242,8 @@ class WordPressParser:
             "id": guid,
             "link": post["link"],
             "published": post["date"],
-            "_image_url": self._extract_image(post),
+            "_featured_media": post.get("featured_media", 0) or 0,
+            "_image_url": None,
         }
 
         for field in self.source.fields:
