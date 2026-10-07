@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
 Собирает отслеживаемые git файлы проекта в один текстовый файл
-для передачи в LLM. Запускать из корня репозитория.
+для передачи в LLM.
+
+Запуск из любой директории:
+    python dev_tools/project_dump.py
 
 Список файлов берётся из `git ls-files --cached`, поэтому правила
 `.gitignore` (включая вложенные и глобальный `~/.gitignore`) работают
 автоматически. Бинарные файлы, lock-файлы, сгенерированный код,
 Markdown-документация и потенциальные секреты пропускаются. Результат
-пишется в `project_dump.txt` с оглавлением в начале и заголовками
+пишется в `out/project_dump.txt` с оглавлением в начале и заголовками
 `===== path =====` перед каждым файлом.
 
 Перед записью скрипт проверяет список файлов эвристикой «похоже
@@ -32,12 +35,12 @@ allow-list, который проверяется после пользоват�
 
 Использование:
 
-    python project_dump.py [опции]
+    python dev_tools/project_dump.py [опции]
 
 Опции:
 
     -o, --output NAME       имя выходного файла
-                            (по умолчанию: project_dump.txt)
+                            (по умолчанию: out/project_dump.txt)
     -x, --exclude PATTERN   дополнительный glob-паттерн исключения;
                             можно повторять
     --no-toc                не добавлять оглавление в начало дампа
@@ -74,7 +77,7 @@ from typing import NamedTuple
 # ─── Настройки ───────────────────────────────────────────────────────────────
 
 # Имя выходного файла по умолчанию (создаётся в корне репозитория).
-OUTPUT_FILE = "project_dump.txt"
+OUTPUT_FILE = "out/project_dump.txt"
 
 # Файлы, которые не имеет смысла включать в дамп для LLM,
 # даже если они отслеживаются git. Glob-паттерны, проверяются
@@ -108,7 +111,7 @@ EXCLUDE_PATTERNS = {
     # файлы, которые не нужны в дампе кода
     ".gitignore",
     ".gitattributes",
-    "project_dump.py",
+    "dev_tools/*",
     "*.md",
     # потенциальные секреты и учётные данные
     ".env",
@@ -489,7 +492,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    root = Path.cwd()
+    root = Path(__file__).resolve().parent.parent
 
     try:
         files = git_ls_files(root)
@@ -560,6 +563,7 @@ def main() -> None:
         )
 
     out_path = root / args.output
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     total_bytes = 0
     included = 0
     encoding_issues = 0

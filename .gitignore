@@ -43,5 +43,5 @@ wheels/
 *.swp
 *.swo
 
-# Дамп проекта
-project_dump.txt
+# Временные файлы разработки
+out/
