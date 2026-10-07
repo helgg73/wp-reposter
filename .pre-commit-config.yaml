@@ -13,6 +13,14 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  # mdformat — форматтер markdown-файлов
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-gfm
+
   # Pytest — локальный хук, чтобы использовать uv и вашу конфигурацию
   - repo: local
     hooks:

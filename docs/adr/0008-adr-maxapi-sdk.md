@@ -6,13 +6,16 @@
 
 ## Context
 
-Для отправки сообщений в мессенджер MAX рассматривались прямые HTTP-запросы к API и использование официальной библиотеки maxapi.
+Для отправки сообщений в мессенджер MAX рассматривались прямые HTTP-запросы к
+API и использование официальной библиотеки maxapi.
 
 Прямые альтернативы:
 
-1. **Прямые HTTP-запросы** — нужно писать клиент вручную, нет типизации, нет обработки ошибок.
-2. **Сторонние обёртки** — менее надёжны, чем официальный SDK.
-3. **maxapi** — официальная Python-библиотека, Pydantic-модели, загрузка медиа, retries.
+1. **Прямые HTTP-запросы** — нужно писать клиент вручную, нет типизации, нет
+   обработки ошибок.
+1. **Сторонние обёртки** — менее надёжны, чем официальный SDK.
+1. **maxapi** — официальная Python-библиотека, Pydantic-модели, загрузка медиа,
+   retries.
 
 ## Decision
 
@@ -21,11 +24,14 @@
 Реализация:
 
 - **Модуль:** `src/exporter.py` → `MaxExporter`
-- **Импорты:** `from maxapi import Bot`, `from maxapi.types import InputMediaBuffer`
+- **Импорты:** `from maxapi import Bot`,
+  `from maxapi.types import InputMediaBuffer`
 - **Методы:**
   - `__init__()` — `self.bot = Bot(token=...)` при `config.enabled`
-  - `export()` — `await self.bot.upload_media(media)`, `await self.bot.send_message(chat_id, text, attachments, disable_link_preview)`
-  - Извлечение ID: `result.message.body.mid` с fallback на `result.id` / `result.message_id`
+  - `export()` — `await self.bot.upload_media(media)`,
+    `await self.bot.send_message(chat_id, text, attachments, disable_link_preview)`
+  - Извлечение ID: `result.message.body.mid` с fallback на `result.id` /
+    `result.message_id`
   - `close()` — `await self.bot.session.close()` или `await self.bot.close()`
 
 ## Consequences
@@ -41,8 +47,10 @@
 **Отрицательные:**
 
 - Зависимость от третьей стороны (но это официальный SDK).
-- Нестандартный путь к ID: `result.message.body.mid` вместо `result.message_id`. Приходится писать fallback.
-- `close()` использует внутреннюю `bot.session` — если maxapi изменит API, сломается.
+- Нестандартный путь к ID: `result.message.body.mid` вместо `result.message_id`.
+  Приходится писать fallback.
+- `close()` использует внутреннюю `bot.session` — если maxapi изменит API,
+  сломается.
 
 **Что теперь нельзя / не нужно:**
 

@@ -2,41 +2,59 @@
 
 - **Status:** Superseded by ADR 0030
 - **Date:** 2026-09-15
-- **Related:** ADR 0005 (asyncio), ADR 0008 (maxapi), ADR 0009 (state), ADR 0011 (disable_link_preview), ADR 0012 (модели), ADR 0016 (Этап 2), ADR 0022 (VK API)
+- **Related:** ADR 0005 (asyncio), ADR 0008 (maxapi), ADR 0009 (state), ADR 0011
+  (disable_link_preview), ADR 0012 (модели), ADR 0016 (Этап 2), ADR 0022 (VK
+  API)
 
-> **Внимание:** этот ADR устарел. Написан до ADR 0030, когда модель
-> была плоской (`ExportConfig` с `max_channel` и `vk_channel`,
-> `template: str`). Актуальные решения — в ADR 0030 (мультиканальность
-> и модель репостера) и ADR 0022 (VK API). Этот файл сохранён
-> для истории.
+> **Внимание:** этот ADR устарел. Написан до ADR 0030, когда модель была плоской
+> (`ExportConfig` с `max_channel` и `vk_channel`, `template: str`). Актуальные
+> решения — в ADR 0030 (мультиканальность и модель репостера) и ADR 0022 (VK
+> API). Этот файл сохранён для истории.
 
 ## Context
 
-Этап 1 дал один канал — MAX. Этап 3 добавляет второй канал — ВКонтакте. Это первая проверка архитектуры на мультиканальность: экспортёр, state, конфиг должны выдержать второго потребителя.
+Этап 1 дал один канал — MAX. Этап 3 добавляет второй канал — ВКонтакте. Это
+первая проверка архитектуры на мультиканальность: экспортёр, state, конфиг
+должны выдержать второго потребителя.
 
 ВК API существенно отличается от MAX:
+
 - Авторизация через `access_token` + `owner_id` (ID группы со знаком минус).
 - Публикация на стену группы — `wall.post`.
-- Загрузка изображений — двухшаговая: `photos.getWallUploadServer` → `photos.saveWallPhoto`.
+- Загрузка изображений — двухшаговая: `photos.getWallUploadServer` →
+  `photos.saveWallPhoto`.
 - Лимит текста — 5000 символов.
 - Rate limit — 3 запроса в секунду на `wall.post`.
 
 ## Decision
 
-Добавить `VkExporter` с интерфейсом, совместимым с `MaxExporter`. Расширить `StateManager` для хранения ID по каналам. Не менять архитектуру асинхронности (ADR 0005).
+Добавить `VkExporter` с интерфейсом, совместимым с `MaxExporter`. Расширить
+`StateManager` для хранения ID по каналам. Не менять архитектуру асинхронности
+(ADR 0005).
 
-**Мультиканальность — последовательный цикл, не `asyncio.gather`.** На Этапе 3 каналов два. `asyncio.gather` даст выигрыш только при 5+ каналах, а пока усложнит обработку ошибок и порядок логирования. Зафиксировано: переход на `gather` — триггер Этапа 5 (S5-04), не раньше.
+**Мультиканальность — последовательный цикл, не `asyncio.gather`.** На Этапе 3
+каналов два. `asyncio.gather` даст выигрыш только при 5+ каналах, а пока
+усложнит обработку ошибок и порядок логирования. Зафиксировано: переход на
+`gather` — триггер Этапа 5 (S5-04), не раньше.
 
-**Фильтры per-channel — не в Этапе 3.** В наброске была идея `vk_include_category_ids` / `vk_exclude_category_ids` в `SourceConfig`. Это усложняет конфиг и модель данных. Отложено до Этапа 5 (S5-02), когда фильтры переедут в БД и станут per-channel естественным образом.
+**Фильтры per-channel — не в Этапе 3.** В наброске была идея
+`vk_include_category_ids` / `vk_exclude_category_ids` в `SourceConfig`. Это
+усложняет конфиг и модель данных. Отложено до Этапа 5 (S5-02), когда фильтры
+переедут в БД и станут per-channel естественным образом.
 
-**Структура exporter.py → exporters/.** При добавлении второго канала модуль `src/exporter.py` превращается в пакет `src/exporters/` с файлами `max_exporter.py` и `vk_exporter.py`. Это зафиксировано в ADR 0020 (раздел "Эволюция структуры").
+**Структура exporter.py → exporters/.** При добавлении второго канала модуль
+`src/exporter.py` превращается в пакет `src/exporters/` с файлами
+`max_exporter.py` и `vk_exporter.py`. Это зафиксировано в ADR 0020 (раздел
+"Эволюция структуры").
 
 ## Tasks
 
 ### S3-01: Изучить VK API
+
 **Статус:** Todo
 
 **Что:** Зафиксировать в ADR 0022 (новый):
+
 - метод публикации (`wall.post`);
 - формат загрузки изображений;
 - лимиты (длина текста, rate limit);
@@ -45,9 +63,11 @@
 **Done:** ADR 0022 создан.
 
 ### S3-02: Добавить `VkChannelConfig` в `src/models.py`
+
 **Статус:** Todo
 
 **Что:**
+
 ```python
 class VkChannelConfig(BaseModel):
     enabled: bool = True
@@ -61,32 +81,40 @@ class ExportConfig(BaseModel):
     vk_channel: VkChannelConfig = Field(default_factory=VkChannelConfig)
 ```
 
-**ADR:** ADR 0012 (модели)  
+**ADR:** ADR 0012 (модели)\
 **Done:** модель добавлена, `ExportConfig` расширен.
 
 ### S3-03: Добавить секреты ВК в `Secrets`
+
 **Статус:** Todo
 
 **Что:** `VK_ACCESS_TOKEN`, `VK_OWNER_ID` в `.env` и `src/models.py::Secrets`.
 
-**ADR:** ADR 0006 (секреты)  
+**ADR:** ADR 0006 (секреты)\
 **Done:** поля добавлены, `.env.example` обновлён.
 
 ### S3-04: Создать `src/exporters/vk_exporter.py`
+
 **Статус:** Todo
 
-**Что:** Класс `VkExporter` с методом `async def export(entry, image_url) -> str | None`.
-- Загрузка изображения: `photos.getWallUploadServer` → POST → `photos.saveWallPhoto`.
+**Что:** Класс `VkExporter` с методом
+`async def export(entry, image_url) -> str | None`.
+
+- Загрузка изображения: `photos.getWallUploadServer` → POST →
+  `photos.saveWallPhoto`.
 - Публикация: `wall.post` с `attachments`.
 - Обрезка текста: поиск последнего предложения в пределах `max_text_length`.
 
-**ADR:** ADR 0005 (asyncio), ADR 0022 (VK API)  
+**ADR:** ADR 0005 (asyncio), ADR 0022 (VK API)\
 **Done:** класс реализован, есть unit-тесты с моками.
 
 ### S3-05: Обновить `src/main.py` для мультиканальности
+
 **Статус:** Todo
 
-**Что:** Последовательный цикл по включённым каналам (не `asyncio.gather` — см. Decision):
+**Что:** Последовательный цикл по включённым каналам (не `asyncio.gather` — см.
+Decision):
+
 ```python
 channels = []
 if app_config.export.max_channel.enabled:
@@ -100,13 +128,16 @@ for channel_name, exporter in channels:
         state.mark_processed(guid, message_id, channel=channel_name)
 ```
 
-**ADR:** ADR 0008, ADR 0017  
-**Done:** оба канала работают одновременно. Триггер перехода на `asyncio.gather` — 5+ каналов (Этап 5).
+**ADR:** ADR 0008, ADR 0017\
+**Done:** оба канала работают одновременно. Триггер перехода на `asyncio.gather`
+— 5+ каналов (Этап 5).
 
 ### S3-06: Обновить `StateManager` для мультиканальности
+
 **Статус:** Todo
 
 **Что:** Новая структура:
+
 ```json
 {
   "processed_posts": {
@@ -120,21 +151,24 @@ for channel_name, exporter in channels:
   "last_processed_date": "..."
 }
 ```
+
 Миграция старого формата (если есть `state.json`).
 
-**ADR:** ADR 0009  
+**ADR:** ADR 0009\
 **Done:** миграция работает, тесты обновлены.
 
 ### S3-07: Тесты на `VkExporter`
+
 **Статус:** Todo
 
 **Что:** Моки VK API через `respx`:
+
 - успешная публикация;
 - ошибка загрузки изображения;
 - rate limit → retry;
 - обрезка текста.
 
-**ADR:** ADR 0017  
+**ADR:** ADR 0017\
 **Done:** ≥ 5 тестов, все проходят.
 
 ## Done criteria

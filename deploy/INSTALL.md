@@ -1,7 +1,7 @@
 # Установка WP Reposter на Linux-сервер
 
-Инструкция для Debian/Ubuntu и ALT Linux. Для других дистрибутивов
-команды установки пакетов замените на свои.
+Инструкция для Debian/Ubuntu и ALT Linux. Для других дистрибутивов команды
+установки пакетов замените на свои.
 
 ## 1. Подготовка системы
 
@@ -23,8 +23,8 @@ sudo apt-get update
 sudo apt-get install python3 python3-venv git uv -y
 ```
 
-В ALT Linux `uv` уже есть в репозитории (`python3-module-uv`),
-поэтому `curl | sh` и `source $HOME/.cargo/env` не нужны.
+В ALT Linux `uv` уже есть в репозитории (`python3-module-uv`), поэтому
+`curl | sh` и `source $HOME/.cargo/env` не нужны.
 
 Проверьте версию Python:
 
@@ -53,14 +53,14 @@ git clone <your-repo-url> .
 uv sync --frozen
 ```
 
-`uv` сам создаст виртуальное окружение в `.venv` и установит туда
-все зависимости. Активировать `.venv` вручную не нужно.
+`uv` сам создаст виртуальное окружение в `.venv` и установит туда все
+зависимости. Активировать `.venv` вручную не нужно.
 
 ## 4. Конфигурация
 
-> **Важно:** конфиги создаются и правятся **от вашего пользователя**,
-> пока папка ещё принадлежит вам. Передача владения сервисному
-> пользователю делается только на шаге 5.
+> **Важно:** конфиги создаются и правятся **от вашего пользователя**, пока папка
+> ещё принадлежит вам. Передача владения сервисному пользователю делается только
+> на шаге 5.
 
 ```bash
 # Создать конфиг из примера
@@ -95,8 +95,8 @@ sudo chmod 600 /opt/wp-reposter/.env
 - `WorkingDirectory=/opt/wp-reposter`
 - `ExecStart=` с путём к `.venv/bin/python` или через `uv run`
 
-Если пути в unit-файле отличаются от `/opt/wp-reposter` — исправьте
-их **до** копирования в `/etc/systemd/system/`.
+Если пути в unit-файле отличаются от `/opt/wp-reposter` — исправьте их **до**
+копирования в `/etc/systemd/system/`.
 
 ```bash
 sudo cp deploy/wp-reposter.service /etc/systemd/system/
@@ -133,8 +133,8 @@ sudo systemctl disable wp-reposter
 
 ## 9. Обновление
 
-Обновление выполняется **от имени сервисного пользователя**,
-так как папка принадлежит ему.
+Обновление выполняется **от имени сервисного пользователя**, так как папка
+принадлежит ему.
 
 ```bash
 sudo -u wp-reposter git -C /opt/wp-reposter pull
@@ -142,8 +142,8 @@ sudo -u wp-reposter bash -c 'cd /opt/wp-reposter && uv sync --frozen'
 sudo systemctl restart wp-reposter
 ```
 
-Если `sudo -u wp-reposter` не работает из-за отсутствия shell
-(он указан как `/bin/false`), используйте `runuser`:
+Если `sudo -u wp-reposter` не работает из-за отсутствия shell (он указан как
+`/bin/false`), используйте `runuser`:
 
 ```bash
 sudo runuser -u wp-reposter -- git -C /opt/wp-reposter pull
@@ -151,8 +151,8 @@ sudo runuser -u wp-reposter -- bash -c 'cd /opt/wp-reposter && uv sync --frozen'
 sudo systemctl restart wp-reposter
 ```
 
-> **Альтернатива:** можно временно вернуть владение папкой себе,
-> обновиться, и снова отдать права сервисному пользователю:
+> **Альтернатива:** можно временно вернуть владение папкой себе, обновиться, и
+> снова отдать права сервисному пользователю:
 >
 > ```bash
 > sudo chown -R $USER:$USER /opt/wp-reposter
@@ -163,6 +163,5 @@ sudo systemctl restart wp-reposter
 > sudo systemctl restart wp-reposter
 > ```
 >
-> Этот способ удобнее, если обновления редкие. Но помните, что
-> `uv sync` при этом будет запускаться от вашего пользователя,
-> а не от `wp-reposter`.
+> Этот способ удобнее, если обновления редкие. Но помните, что `uv sync` при
+> этом будет запускаться от вашего пользователя, а не от `wp-reposter`.
