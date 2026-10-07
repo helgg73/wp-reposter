@@ -2,6 +2,7 @@
 
 - **Status:** Proposed
 - **Date:** 2026-10-01
+- **Updated:** 2026-10-07
 - **Related:** ADR 0028 (модуль трансформаций), ADR 0030 (мультиканальность)
 
 ## Context
@@ -187,12 +188,14 @@ GET /wp/v2/posts
 **Новое поле в `WPRestSourceConfig`:**
 
 ```python
-default_image: str | bool = False
+default_image: str | Literal[False] = False
 ```
 
-- `False` — заглушка отключена.
+- `False` — заглушка отключена (значение по умолчанию).
 - Путь (строка) — файл-заглушка, относительно корня
   проекта.
+- `True` — **не принимается** (`ValidationError`):
+  `Literal[False]` пропускает только `False` и строку.
 
 **Картинка по умолчанию — свойство источника** (разные
 источники → разные тематики). Файлы: пользовательские —
@@ -327,39 +330,37 @@ Open Graph). Оригинал лучше.
 
 ## Done criteria
 
-- [ ] В `WordPressParser.fetch_posts` убран `_embed=True`.
-- [ ] В `params` добавлен `_fields=`, формируемый из
+- [x] В `WordPressParser.fetch_posts` убран `_embed=True`.
+- [x] В `params` добавлен `_fields=`, формируемый из
       `source.fields` + служебные (`id`, `date`,
       `guid.rendered`, `featured_media`).
-- [ ] В `params` добавлены `categories_exclude` и
+- [x] В `params` добавлены `categories_exclude` и
       `tags_exclude` из `post_filter`.
-- [ ] `_should_exclude` удалён из `WordPressParser`.
-- [ ] `_extract_image` — async, отдельный запрос
+- [x] `_should_exclude` удалён из `WordPressParser`.
+- [x] `_extract_image` — async, отдельный запрос
       к `/wp/v2/media/<id>?_fields=id,source_url`.
-- [ ] `_extract_image` использует `source.default_image`,
+- [x] `_extract_image` использует `source.default_image`,
       если `source_url` пуст или `featured_media: 0`.
-- [ ] `_extract_image` возвращает `None`, если `default_image`
+- [x] `_extract_image` возвращает `None`, если `default_image`
       — `False` или файл отсутствует.
-- [ ] `_format_post` не читает `_embedded`, остаётся sync.
-- [ ] В `fetch_posts` после `_format_post` — параллельный
+- [x] `_format_post` не читает `_embedded`, остаётся sync.
+- [x] В `fetch_posts` после `_format_post` — параллельный
       сбор медиа с `asyncio.Semaphore(MEDIA_FETCH_CONCURRENCY)`.
-- [ ] Константа `MEDIA_FETCH_CONCURRENCY = 5` в парсере.
-- [ ] `_extract_image` при ошибке — `WARNING` + fallback
+- [x] Константа `MEDIA_FETCH_CONCURRENCY = 5` в парсере.
+- [x] `_extract_image` при ошибке — `WARNING` + fallback
       на `default_image` (или `None`).
-- [ ] В `WPRestSourceConfig` добавлено
-      `default_image: str | bool = False`.
-- [ ] `featured_image_size` в `WPRestSourceConfig` помечен
+- [x] `featured_image_size` в `WPRestSourceConfig` помечен
       deprecated в docstring, не используется.
-- [ ] `MaxExporter._download_image` различает HTTP-URL
+- [x] `MaxExporter._download_image` различает HTTP-URL
       и локальный путь.
-- [ ] `VkExporter` — не трогаем (картинки не поддерживаются).
-- [ ] При старте в `main.py`: если `default_image` задан,
+- [x] `VkExporter` — не трогаем (картинки не поддерживаются).
+- [x] При старте в `main.py`: если `default_image` задан,
       но файл отсутствует — `WARNING` в лог (не падать).
-- [ ] В `.gitignore` добавлено `static/*` с исключением
+- [x] В `.gitignore` добавлено `static/*` с исключением
       `!static/defaults/`.
-- [ ] В `static/defaults/` положен `blank-1200x675.png`
+- [x] В `static/defaults/` положен `blank-1200x675.png`
       (белый PNG 1200×675, 16:9).
-- [ ] Тесты `tests/test_parser.py`:
+- [x] Тесты `tests/test_parser.py`:
   - `fetch_posts` отправляет `_fields=`;
   - `fetch_posts` отправляет `categories_exclude`,
     `tags_exclude`;
@@ -371,18 +372,20 @@ Open Graph). Оригинал лучше.
   - `_extract_image` возвращает None, если ничего нет;
   - параллельные запросы с семафором (лимит 5);
   - `_should_exclude` **удалён** (тесты на него удалены).
-- [ ] Тесты `tests/test_models.py`:
+- [x] Тесты `tests/test_models.py`:
   - `default_image` принимается (`False` и строка);
   - `featured_image_size` присутствует, но не используется.
-- [ ] `config/settings.example.yaml`:
+- [x] `config/settings.example.yaml`:
   - `default_image: false` в источнике;
   - комментарий про пути и `static/`;
   - убрать `featured_image_size` из примера
     (или оставить с пометкой deprecated).
-- [ ] `uv run pytest` проходит.
-- [ ] `uv run ruff check` проходит.
-- [ ] Ручная проверка: пост приходит без ошибок, картинка
+- [x] `uv run pytest` проходит.
+- [x] `uv run ruff check` проходит.
+- [x] Ручная проверка: пост приходит без ошибок, картинка
       скачивается (оригинал или заглушка), трафик меньше.
+- [x] В `WPRestSourceConfig` добавлено
+      `default_image: str | Literal[False] = False`.
 
 ## Not to touch
 
@@ -422,9 +425,9 @@ Open Graph). Оригинал лучше.
 
 **Задачи:**
 
-- **S2g-01:** «Оптимизация запроса» — `?_fields=`, отказ
-  от `_embed`, серверная фильтрация, медиа отдельно,
-  `default_image`.
+- **S2g-01a:** парсер (_fields, _embed, серверная фильтрация, фикс transform_html). ✅ Done.
+- **S2g-01b:** медиа + default_image. ✅ Done.
+- **S2g-01c:** конфиг, main.py, интеграционные тесты. 🟡 Частично (конфиг и main.py уже в S2g-01b).
 - **S2g-02:** `max_source_field_length` — обрезка больших
   полей **до** трансформера.
 
@@ -436,4 +439,3 @@ Open Graph). Оригинал лучше.
   многопользовательском режиме.
 - **TD-19** — медиа для всех постов из `fetch_posts`,
   оптимизация «только для публикуемых».
-  
