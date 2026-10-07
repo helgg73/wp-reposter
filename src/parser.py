@@ -8,6 +8,17 @@ from .models import FilterConfig, WPRestSourceConfig
 
 logger = logging.getLogger(__name__)
 
+# Поля, которые парсер запрашивает всегда — нужны для работы
+# `_format_post` и последующей публикации. Не объявляются
+# в `source.fields`, добавляются автоматически (ADR 0031).
+_SERVICE_FIELDS = (
+    "id",
+    "date",
+    "guid.rendered",
+    "featured_media",
+    "link",
+)
+
 
 class WordPressParser:
     def __init__(self, source: WPRestSourceConfig):
@@ -15,6 +26,17 @@ class WordPressParser:
         self.client = httpx.AsyncClient(timeout=30.0)
         self.base_url = source.base_url.rstrip("/")
         self.api_url = f"{self.base_url}{source.api_path}"
+
+    def _build_fields_param(self) -> str:
+        """Формирует `_fields` из `source.fields` + служебные.
+
+        Если пользователь добавит новое поле в `source.fields` —
+        оно автоматически попадёт в запрос (ADR 0031).
+        """
+        fields = set(_SERVICE_FIELDS)
+        for f in self.source.fields:
+            fields.add(f.name)
+        return ",".join(sorted(fields))
 
     async def fetch_posts(
         self,
@@ -29,12 +51,20 @@ class WordPressParser:
         Если None — пустой FilterConfig (брать всё).
         `max_posts` — жёсткий лимит на количество возвращаемых
         постов. Пагинация останавливается, как только набрано.
+
+        Запрос формируется с `?_fields=` — тянем только
+        объявленные поля + служебные. `_embed` не используем
+        (несовместим с `_fields=`, ADR 0031).
+
+        Фильтрация категорий и тегов — на стороне WP
+        (`categories`, `tags`, `categories_exclude`,
+        `tags_exclude`).
         """
         post_filter = post_filter or FilterConfig()
 
         all_posts: list[dict] = []
         params = {
-            "_embed": True,
+            "_fields": self._build_fields_param(),
             "orderby": "date",
             "order": "desc",
             "per_page": self.source.per_page,
@@ -45,6 +75,10 @@ class WordPressParser:
             params["categories"] = ",".join(map(str, post_filter.include_category_ids))
         if post_filter.include_tag_ids:
             params["tags"] = ",".join(map(str, post_filter.include_tag_ids))
+        if post_filter.exclude_category_ids:
+            params["categories_exclude"] = ",".join(map(str, post_filter.exclude_category_ids))
+        if post_filter.exclude_tag_ids:
+            params["tags_exclude"] = ",".join(map(str, post_filter.exclude_tag_ids))
 
         for page in range(1, self.source.max_pages + 1):
             params["page"] = page
@@ -74,8 +108,6 @@ class WordPressParser:
                 break
 
             for post in posts:
-                if self._should_exclude(post, post_filter):
-                    continue
                 formatted = self._format_post(post)
                 if formatted is not None:
                     all_posts.append(formatted)
@@ -87,35 +119,15 @@ class WordPressParser:
 
         return all_posts
 
-    def _should_exclude(self, post: dict, post_filter: FilterConfig) -> bool:
-        terms = post.get("_embedded", {}).get("wp:term", [])
-        post_category_ids = []
-        post_tag_ids = []
-        for term_list in terms:
-            if not term_list:
-                continue
-            taxonomy = term_list[0].get("taxonomy", "")
-            if taxonomy == "category":
-                post_category_ids = [t["id"] for t in term_list]
-            elif taxonomy == "post_tag":
-                post_tag_ids = [t["id"] for t in term_list]
-        return any(
-            cat_id in post_category_ids for cat_id in post_filter.exclude_category_ids
-        ) or any(tag_id in post_tag_ids for tag_id in post_filter.exclude_tag_ids)
-
     def _extract_image(self, post: dict) -> str | None:
-        embedded = post.get("_embedded", {})
-        featured_media = embedded.get("wp:featuredmedia", [])
-        if not featured_media:
-            return None
-        media_details = featured_media[0].get("media_details", {})
-        sizes = media_details.get("sizes", {})
-        target_size = self.source.featured_image_size
-        if target_size in sizes and sizes[target_size].get("source_url"):
-            return sizes[target_size]["source_url"]
-        for size_data in sizes.values():
-            if size_data.get("source_url"):
-                return size_data["source_url"]
+        """Возвращает URL картинки или None.
+
+        **Временно (S2g-01a).** Раньше читал
+        `_embedded.wp:featuredmedia`. `_embed` убран
+        (несовместим с `?_fields=`, ADR 0031).
+        Реализация отдельным запросом к /wp/v2/media/<id> —
+        в S2g-01b.
+        """
         return None
 
     def _format_post(self, post: dict) -> dict | None:
@@ -141,7 +153,7 @@ class WordPressParser:
             "id": guid,
             "link": post["link"],
             "published": post["date"],
-            "_image_url": self._extract_image(post) if self.source.featured_image_size else None,
+            "_image_url": self._extract_image(post),
         }
 
         for field in self.source.fields:

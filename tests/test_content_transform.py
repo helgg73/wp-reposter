@@ -34,6 +34,36 @@ class TestTransformHtmlTags:
     def test_simple_tag(self):
         assert transform_html("<p>Привет</p>") == "Привет"
 
+    def test_two_p_tags_no_newline_between(self):
+        """Два <p> подряд без \n между — границы абзацев сохраняются.
+
+        Реальная структура content.rendered: <p>...</p>\n<p>...</p>,
+        но бывает и <p>...</p><p>...</p> без \n. Оба варианта
+        должны дать \n\n.
+        """
+        html = "<p>Абзац 1</p><p>Абзац 2</p>"
+        assert transform_html(html) == "Абзац 1\n\nАбзац 2"
+
+    def test_two_p_tags_with_newline_between(self):
+        """<p>Абзац 1</p>\\n<p>Абзац 2</p> → абзацы через \\n\\n."""
+        html = "<p>Абзац 1</p>\n<p>Абзац 2</p>"
+        assert transform_html(html) == "Абзац 1\n\nАбзац 2"
+
+    def test_two_div_tags(self):
+        """<div> тоже блочный тег — граница абзаца."""
+        html = "<div>Абзац 1</div><div>Абзац 2</div>"
+        assert transform_html(html) == "Абзац 1\n\nАбзац 2"
+
+    def test_p_with_attributes(self):
+        """<p class="..."> тоже блочный тег."""
+        html = '<p class="lead">Лид</p><p>Текст</p>'
+        assert transform_html(html) == "Лид\n\nТекст"
+
+    def test_p_with_inline_tags_inside(self):
+        """<p> с <strong>, <a> внутри — границы абзацев сохраняются."""
+        html = '<p>Первый <strong>абзац</strong>.</p><p>Второй <a href="#">абзац</a>.</p>'
+        assert transform_html(html) == "Первый абзац.\n\nВторой абзац."
+
     def test_nested_tags(self):
         assert transform_html("<p><b>Привет</b></p>") == "Привет"
 
@@ -399,3 +429,61 @@ class TestTruncateFirstParagraph:
         """Без указания mode — обратная совместимость."""
         text = "Первый\n\nВторой"
         assert truncate(text, 100) == "Первый\n\nВторой"
+
+
+class TestTransformHtmlPlusFirstParagraph:
+    """Сквозной сценарий: transform_html → truncate(first_paragraph).
+
+    Реальная структура content.rendered: абзацы размечены <p>,
+    между ними \n. После transform_html — \n\n. После
+    truncate(first_paragraph) — только первый абзац.
+    """
+
+    def test_content_rendered_gives_first_paragraph(self):
+        """Реальный content.rendered → только первый абзац."""
+        html = (
+            "<p>Первый абзац лида. Продолжение первого абзаца.</p>\n"
+            "<p>Второй абзац текста. Ещё предложение.</p>\n"
+            "<p>Третий абзац.</p>\n"
+        )
+        cleaned = transform_html(html)
+        assert cleaned == (
+            "Первый абзац лида. Продолжение первого абзаца.\n\n"
+            "Второй абзац текста. Ещё предложение.\n\n"
+            "Третий абзац."
+        )
+        result = truncate(cleaned, 0, mode="first_paragraph")
+        assert result == "Первый абзац лида. Продолжение первого абзаца."
+
+    def test_content_with_inline_tags_first_paragraph(self):
+        """<strong> в первом абзаце — не мешает."""
+        html = "<p><strong>Лид.</strong> Ещё текст лида.</p>\n<p>Второй абзац.</p>\n"
+        cleaned = transform_html(html)
+        result = truncate(cleaned, 0, mode="first_paragraph")
+        assert result == "Лид. Ещё текст лида."
+
+    def test_first_paragraph_with_max_length(self):
+        """first_paragraph + max_length — обрезка по слову."""
+        html = (
+            "<p>Первый абзац с очень длинным текстом для проверки обрезки.</p>\n"
+            "<p>Второй абзац.</p>\n"
+        )
+        cleaned = transform_html(html)
+        result = truncate(cleaned, 15, mode="first_paragraph")
+        # "Первый абзац с" = 14, "Первый абзац с очень" = 21 > 20
+        assert result == "Первый абзац с"
+
+    def test_single_paragraph_returns_whole(self):
+        """Один <p> — режим first_paragraph не режет."""
+        html = "<p>Единственный абзац без границ.</p>"
+        cleaned = transform_html(html)
+        result = truncate(cleaned, 0, mode="first_paragraph")
+        assert result == "Единственный абзац без границ."
+
+    def test_marker_in_last_paragraph_stripped(self):
+        """Маркер [...] в конце — удаляется до truncate."""
+        html = "<p>Лид.</p>\n<p>Второй абзац [&hellip;]</p>\n"
+        cleaned = transform_html(html)
+        assert "[…]" not in cleaned
+        result = truncate(cleaned, 0, mode="first_paragraph")
+        assert result == "Лид."

@@ -29,53 +29,6 @@ def make_post(category_ids=None, tag_ids=None, **overrides):
     return post
 
 
-class TestShouldExclude:
-    """Тесты на метод _should_exclude()."""
-
-    def test_exclude_by_category(self, parser):
-        post_filter = FilterConfig(exclude_category_ids=[5, 10])
-        post = make_post(category_ids=[5, 20])
-        assert parser._should_exclude(post, post_filter) is True
-
-    def test_exclude_by_tag(self, parser):
-        post_filter = FilterConfig(exclude_tag_ids=[15, 25])
-        post = make_post(category_ids=[1], tag_ids=[15, 30])
-        assert parser._should_exclude(post, post_filter) is True
-
-    def test_include_when_no_exclusions(self, parser):
-        post_filter = FilterConfig(
-            exclude_category_ids=[5],
-            exclude_tag_ids=[15],
-        )
-        post = make_post(category_ids=[1, 2], tag_ids=[3, 4])
-        assert parser._should_exclude(post, post_filter) is False
-
-    def test_no_exclusions_when_lists_empty(self, parser, filter_config):
-        post = make_post(category_ids=[1, 2, 3], tag_ids=[4, 5, 6])
-        assert parser._should_exclude(post, filter_config) is False
-
-    def test_no_crash_when_terms_missing(self, parser, filter_config):
-        post = make_post()
-        post["_embedded"] = {}
-        assert parser._should_exclude(post, filter_config) is False
-
-    def test_taxonomy_order_independent(self, parser):
-        """Порядок таксономий в wp:term не важен — поиск по taxonomy (ADR 0021)."""
-        post_filter = FilterConfig(
-            exclude_category_ids=[5],
-            exclude_tag_ids=[15],
-        )
-
-        post = make_post()
-        post["_embedded"] = {
-            "wp:term": [
-                [{"id": 15, "taxonomy": "post_tag"}],
-                [{"id": 5, "taxonomy": "category"}],
-            ]
-        }
-        assert parser._should_exclude(post, post_filter) is True
-
-
 @pytest.mark.asyncio
 class TestFetchPosts:
     """Асинхронные тесты на fetch_posts() с моками respx."""
@@ -235,6 +188,95 @@ class TestFetchPosts:
         posts = await parser.fetch_posts(max_posts=None)
 
         assert len(posts) == 20
+
+    async def test_fields_parameter_sent(self, respx_mock, source_config):
+        """`_fields` формируется из source.fields + служебные (ADR 0031)."""
+        route = respx_mock.get(f"{source_config.base_url}{source_config.api_path}/posts").respond(
+            json=[]
+        )
+
+        parser = WordPressParser(source_config)
+        await parser.fetch_posts()
+
+        assert route.called
+        request = route.calls[0].request
+        fields = request.url.params.get("_fields")
+        assert fields is not None
+        field_set = set(fields.split(","))
+        # Объявленные в source.fields
+        assert "title.rendered" in field_set
+        assert "excerpt.rendered" in field_set
+        assert "link" in field_set
+        # Служебные
+        assert "id" in field_set
+        assert "date" in field_set
+        assert "guid.rendered" in field_set
+        assert "featured_media" in field_set
+
+        await parser.close()
+
+    async def test_no_embed_parameter(self, respx_mock, source_config):
+        """`_embed` не отправляется (несовместим с `_fields=`, ADR 0031)."""
+        route = respx_mock.get(f"{source_config.base_url}{source_config.api_path}/posts").respond(
+            json=[]
+        )
+
+        parser = WordPressParser(source_config)
+        await parser.fetch_posts()
+
+        assert route.called
+        request = route.calls[0].request
+        assert "_embed" not in request.url.params
+
+        await parser.close()
+
+    async def test_exclude_category_ids_parameter(self, respx_mock, source_config):
+        """exclude_category_ids → ?categories_exclude= (ADR 0031)."""
+        post_filter = FilterConfig(exclude_category_ids=[5, 10])
+        route = respx_mock.get(f"{source_config.base_url}{source_config.api_path}/posts").respond(
+            json=[]
+        )
+
+        parser = WordPressParser(source_config)
+        await parser.fetch_posts(post_filter=post_filter)
+
+        assert route.called
+        request = route.calls[0].request
+        assert request.url.params.get("categories_exclude") == "5,10"
+
+        await parser.close()
+
+    async def test_exclude_tag_ids_parameter(self, respx_mock, source_config):
+        """exclude_tag_ids → ?tags_exclude= (ADR 0031)."""
+        post_filter = FilterConfig(exclude_tag_ids=[15, 25])
+        route = respx_mock.get(f"{source_config.base_url}{source_config.api_path}/posts").respond(
+            json=[]
+        )
+
+        parser = WordPressParser(source_config)
+        await parser.fetch_posts(post_filter=post_filter)
+
+        assert route.called
+        request = route.calls[0].request
+        assert request.url.params.get("tags_exclude") == "15,25"
+
+        await parser.close()
+
+    async def test_exclude_not_sent_when_empty(self, respx_mock, source_config, filter_config):
+        """Пустые exclude — параметры не отправляются."""
+        route = respx_mock.get(f"{source_config.base_url}{source_config.api_path}/posts").respond(
+            json=[]
+        )
+
+        parser = WordPressParser(source_config)
+        await parser.fetch_posts(post_filter=filter_config)
+
+        assert route.called
+        request = route.calls[0].request
+        assert "categories_exclude" not in request.url.params
+        assert "tags_exclude" not in request.url.params
+
+        await parser.close()
 
 
 class TestFormatPostValidation:
