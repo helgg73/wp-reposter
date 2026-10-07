@@ -61,14 +61,14 @@
 
 ## Tasks
 
-| #   | ID     | Задача                                                         | Файл                      |
-| --- | ------ | -------------------------------------------------------------- | ------------------------- |
-| 1   | S2b-14 | Добавить `pre-commit` в dev-зависимости                        | `pyproject.toml`          |
-| 2   | S2b-15 | Создать `.pre-commit-config.yaml`                              | `.pre-commit-config.yaml` |
-| 3   | S2b-16 | Установить хуки: `pre-commit install` и `--hook-type pre-push` | —                         |
-| 4   | S2b-17 | Зафиксировать `rev` тегами (не `main`)                         | `.pre-commit-config.yaml` |
-| 5   | S2b-18 | Прогнать `run --all-files` и `--hook-stage pre-push`           | —                         |
-| 6   | S2b-19 | Обновить документацию (ADR 0014, ROADMAP, BACKLOG)             | —                         |
+| # | ID | Задача | Файл |
+| -- | -- | -- | -- |
+| 1 | S2b-14 | Добавить `pre-commit` в dev-зависимости | `pyproject.toml` |
+| 2 | S2b-15 | Создать `.pre-commit-config.yaml` | `.pre-commit-config.yaml` |
+| 3 | S2b-16 | Установить хуки: `pre-commit install` и `--hook-type pre-push` | — |
+| 4 | S2b-17 | Зафиксировать `rev` тегами (не `main`) | `.pre-commit-config.yaml` |
+| 5 | S2b-18 | Прогнать `run --all-files` и `--hook-stage pre-push` | — |
+| 6 | S2b-19 | Обновить документацию (ADR 0014, ROADMAP, BACKLOG) | — |
 
 **Порядок:** 1 → 2 → 3 → 4 → 5 → 6. Задача 6 выполняется после успешного прогона
 хуков.

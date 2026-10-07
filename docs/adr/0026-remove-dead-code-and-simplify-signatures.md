@@ -49,12 +49,12 @@
 
 ## Tasks
 
-| #   | ID     | Задача                                         | Файл              |
-| --- | ------ | ---------------------------------------------- | ----------------- |
-| 1   | S2b-10 | Удалить `FieldMapping` и `field_mapping`       | `src/models.py`   |
-| 2   | S2b-11 | Убрать параметр `secrets` из `check_sources()` | `src/main.py`     |
-| 3   | S2b-12 | Не сохранять `self.bot_token`                  | `src/exporter.py` |
-| 4   | S2b-13 | Прогнать `uv run pytest` и `uv run ruff check` | —                 |
+| # | ID | Задача | Файл |
+| -- | -- | -- | -- |
+| 1 | S2b-10 | Удалить `FieldMapping` и `field_mapping` | `src/models.py` |
+| 2 | S2b-11 | Убрать параметр `secrets` из `check_sources()` | `src/main.py` |
+| 3 | S2b-12 | Не сохранять `self.bot_token` | `src/exporter.py` |
+| 4 | S2b-13 | Прогнать `uv run pytest` и `uv run ruff check` | — |
 
 **Порядок:** 1 → 2 → 3 → 4. Задачи независимы, но проверка (4) выполняется после
 всех.

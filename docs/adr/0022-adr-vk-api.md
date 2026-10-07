@@ -346,15 +346,15 @@ manage не нужен для текстового постинга и не за
 
 ## Tasks
 
-| #   | ID      | Задача                                                                                              | ADR        | Статус |
-| --- | ------- | --------------------------------------------------------------------------------------------------- | ---------- | ------ |
-| 1   | S3b-01  | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества                             | —          | Done   |
-| 2   | S3b-02  | `VkChannelConfig` в `models.py`, расширить `ChannelConfig`                                          | 0030, 0022 | Todo   |
-| 3   | S3b-03  | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | Todo   |
-| 4a  | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` (без изменения логики)                                 | 0020, 0022 | Todo   |
-| 4b  | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях, ветка в `create_exporter()`      | 0005, 0022 | Todo   |
-| 5   | S3b-05  | Тесты на `VkExporter`                                                                               | 0022       | Todo   |
-| 6   | S3b-06  | Ручная проверка: пост уходит в VK                                                                   | 0022       | Todo   |
+| # | ID | Задача | ADR | Статус |
+| -- | -- | -- | -- | -- |
+| 1 | S3b-01 | Создать ADR 0022: VK API, `vkbottle` standalone `API`, токен сообщества | — | Done |
+| 2 | S3b-02 | `VkChannelConfig` в `models.py`, расширить `ChannelConfig` | 0030, 0022 | Todo |
+| 3 | S3b-03 | Секреты ВК: `vk_token()` в `Secrets`, `load_dotenv()` в `config.py`, `python-dotenv` в зависимостях | 0006, 0022 | Todo |
+| 4a | S3b-04a | Переезд `src/exporter.py` → `src/exporters/` (без изменения логики) | 0020, 0022 | Todo |
+| 4b | S3b-04b | `src/exporters/vk_exporter.py` (текст), `vkbottle` в зависимостях, ветка в `create_exporter()` | 0005, 0022 | Todo |
+| 5 | S3b-05 | Тесты на `VkExporter` | 0022 | Todo |
+| 6 | S3b-06 | Ручная проверка: пост уходит в VK | 0022 | Todo |
 
 **Логика порядка:**
 

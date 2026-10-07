@@ -31,33 +31,33 @@ uv run pytest
 
 Полный индекс — в [ADR 0014](doc/adr/0014-adr-index.md).
 
-| ID   | Название                                                 | Статус      |
-| ---- | -------------------------------------------------------- | ----------- |
-| 0001 | Project dump for LLM context                             | Accepted    |
-| 0002 | uv как менеджер пакетов                                  | Accepted    |
-| 0003 | ruff для линтинга и форматирования                       | Accepted    |
-| 0004 | WordPress REST API вместо RSS                            | Accepted    |
-| 0005 | Асинхронная архитектура на asyncio                       | Accepted    |
-| 0006 | pydantic-settings для секретов                           | Accepted    |
-| 0007 | cutoff_date логика (защита от спама)                     | Accepted    |
-| 0008 | maxapi как SDK для MAX                                   | Accepted    |
-| 0009 | JSON state хранение                                      | Accepted    |
-| 0010 | Лимит постов за один цикл (max_new_posts_per_run)        | Accepted    |
-| 0011 | disable_link_preview по умолчанию                        | Accepted    |
-| 0012 | Единый источник Pydantic-моделей                         | Accepted    |
-| 0013 | Синхронный парсер как временное исключение               | Accepted    |
-| 0014 | Индекс ADR                                               | Accepted    |
-| 0015 | План миграции кода под ADR                               | Accepted    |
-| 0016 | Этап 2 — Фильтрация по рубрикам и тегам + unit-тесты     | Accepted    |
-| 0017 | Этап 3 — Интеграция с ВКонтакте                          | Planned     |
-| 0018 | Этап 4 — Веб-интерфейс, Docker, PostgreSQL               | Planned     |
-| 0019 | Этап 5 — Продвинутый UI и мультиканальность              | Planned     |
-| 0020 | Структура модулей и зоны ответственности                 | Accepted    |
-| 0021 | Поиск таксономий по полю `taxonomy` вместо индекса       | Accepted    |
-| 0022 | VK API для публикации постов                             | Planned     |
-| 0023 | Серверная фильтрация постов по тегам (`include_tag_ids`) | Accepted    |
-| 0024 | Мягкая обработка некорректных дат постов в парсере       | Accepted    |
-| 0025 | Подготовка к автономному запуску через systemd           | In progress |
+| ID | Название | Статус |
+| -- | -- | -- |
+| 0001 | Project dump for LLM context | Accepted |
+| 0002 | uv как менеджер пакетов | Accepted |
+| 0003 | ruff для линтинга и форматирования | Accepted |
+| 0004 | WordPress REST API вместо RSS | Accepted |
+| 0005 | Асинхронная архитектура на asyncio | Accepted |
+| 0006 | pydantic-settings для секретов | Accepted |
+| 0007 | cutoff_date логика (защита от спама) | Accepted |
+| 0008 | maxapi как SDK для MAX | Accepted |
+| 0009 | JSON state хранение | Accepted |
+| 0010 | Лимит постов за один цикл (max_new_posts_per_run) | Accepted |
+| 0011 | disable_link_preview по умолчанию | Accepted |
+| 0012 | Единый источник Pydantic-моделей | Accepted |
+| 0013 | Синхронный парсер как временное исключение | Accepted |
+| 0014 | Индекс ADR | Accepted |
+| 0015 | План миграции кода под ADR | Accepted |
+| 0016 | Этап 2 — Фильтрация по рубрикам и тегам + unit-тесты | Accepted |
+| 0017 | Этап 3 — Интеграция с ВКонтакте | Planned |
+| 0018 | Этап 4 — Веб-интерфейс, Docker, PostgreSQL | Planned |
+| 0019 | Этап 5 — Продвинутый UI и мультиканальность | Planned |
+| 0020 | Структура модулей и зоны ответственности | Accepted |
+| 0021 | Поиск таксономий по полю `taxonomy` вместо индекса | Accepted |
+| 0022 | VK API для публикации постов | Planned |
+| 0023 | Серверная фильтрация постов по тегам (`include_tag_ids`) | Accepted |
+| 0024 | Мягкая обработка некорректных дат постов в парсере | Accepted |
+| 0025 | Подготовка к автономному запуску через systemd | In progress |
 
 ### Этапы развития
 

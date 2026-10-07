@@ -7,19 +7,19 @@
 
 ## Обзор
 
-| Этап | Фокус                                                                                   | Статус          | Ключевые технологии                                     |
-| ---- | --------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------- |
-| 1    | MVP: WP REST API → MAX, cutoff_date, state.json                                         | ✅ Done         | uv, ruff, httpx, pydantic, maxapi, asyncio              |
-| 2    | Фильтрация по категориям/тегам + unit-тесты                                             | ✅ Done         | pytest, respx                                           |
-| 2b   | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | ✅ Done         | systemd, logging, filelock, retry/backoff, pre-commit   |
-| 2c   | Композиция поста и модуль трансформаций                                                 | ✅ Done         | content_transform, validation, WPRestSourceConfig       |
-| 2d   | Обрезка текста по `max_length`                                                          | ✅ Done         | content_transform                                       |
-| 2e   | Режим обрезки `first_paragraph`                                                         | ✅ Done         | content_transform                                       |
-| 2g   | Оптимизация запроса к WP REST API                                                       | 🟡 В работе     | `_fields`, `categories_exclude`, отдельный запрос медиа |
-| 3a   | Мультиканальность и модель репостера                                                    | ✅ Done         | ADR 0030                                                |
-| 3b   | Интеграция с ВКонтакте                                                                  | ✅ Done         | VK API 5.199, vkbottle, python-dotenv                   |
-| 4    | Веб-интерфейс, Docker, PostgreSQL                                                       | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie        |
-| 5    | Продвинутый UI, мультиканальность                                                       | ⚪ Запланирован | Динамическая конфигурация, мониторинг                   |
+| Этап | Фокус | Статус | Ключевые технологии |
+| -- | -- | -- | -- |
+| 1 | MVP: WP REST API → MAX, cutoff_date, state.json | ✅ Done | uv, ruff, httpx, pydantic, maxapi, asyncio |
+| 2 | Фильтрация по категориям/тегам + unit-тесты | ✅ Done | pytest, respx |
+| 2b | Автономный запуск: systemd, логирование, отказоустойчивость, чистка кода, quality gates | ✅ Done | systemd, logging, filelock, retry/backoff, pre-commit |
+| 2c | Композиция поста и модуль трансформаций | ✅ Done | content_transform, validation, WPRestSourceConfig |
+| 2d | Обрезка текста по `max_length` | ✅ Done | content_transform |
+| 2e | Режим обрезки `first_paragraph` | ✅ Done | content_transform |
+| 2g | Оптимизация запроса к WP REST API | 🟡 В работе | `_fields`, `categories_exclude`, отдельный запрос медиа |
+| 3a | Мультиканальность и модель репостера | ✅ Done | ADR 0030 |
+| 3b | Интеграция с ВКонтакте | ✅ Done | VK API 5.199, vkbottle, python-dotenv |
+| 4 | Веб-интерфейс, Docker, PostgreSQL | ⚪ Запланирован | FastAPI, APScheduler, SQLAlchemy, Alembic, Angie |
+| 5 | Продвинутый UI, мультиканальность | ⚪ Запланирован | Динамическая конфигурация, мониторинг |
 
 ## Технический долг
 

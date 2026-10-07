@@ -38,11 +38,11 @@ cutoff_date, отправить в MAX, сохранить state. Фильтра
 
 ## Уже есть (сделано на Этапе 1)
 
-| Компонент             | Где                                                | Что                                                                                  |
-| --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Поля фильтрации       | `src/models.py::SourceConfig`                      | `include_category_ids`, `exclude_category_ids`, `include_tag_ids`, `exclude_tag_ids` |
-| Клиентская фильтрация | `src/parser.py::WordPressParser._should_exclude()` | Работает по `exclude_*`                                                              |
-| Серверная фильтрация  | `src/parser.py::WordPressParser.fetch_posts()`     | Передаёт `?categories=` для `include_category_ids`                                   |
+| Компонент | Где | Что |
+| -- | -- | -- |
+| Поля фильтрации | `src/models.py::SourceConfig` | `include_category_ids`, `exclude_category_ids`, `include_tag_ids`, `exclude_tag_ids` |
+| Клиентская фильтрация | `src/parser.py::WordPressParser._should_exclude()` | Работает по `exclude_*` |
+| Серверная фильтрация | `src/parser.py::WordPressParser.fetch_posts()` | Передаёт `?categories=` для `include_category_ids` |
 
 ## Tasks
 

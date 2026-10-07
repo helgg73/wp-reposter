@@ -1,3 +1,5 @@
 wrap = 80
 number = false
 end_of_line = "lf"
+[plugin.tables]
+compact_tables = true
