@@ -117,6 +117,34 @@ async def send_with_pause(
     return result
 
 
+def compute_reposter_cutoff(
+    reposter: ReposterConfig,
+    base_dir: str = "data/state",
+) -> str | None:
+    """Вычисляет общий cutoff для репостера (ADR 0030, п. 11 + ADR 0036).
+
+    Возвращает:
+    - None, если хотя бы у одного канала cutoff пуст —
+      этот канал ещё не видел ничего, тянем с начала;
+    - None, если каналов нет;
+    - минимальный cutoff_date из всех каналов иначе.
+
+    Парсер вызывается один раз на репостер с этим cutoff.
+    Активные каналы отфильтруют уже обработанное через
+    `state.is_processed(guid)`.
+    """
+    cutoffs: list[str | None] = []
+    for rc in reposter.channels:
+        with StateManager(reposter.name, rc.channel, base_dir=base_dir) as state:
+            cutoffs.append(state.last_processed_date)
+
+    if not cutoffs:
+        return None
+    if any(c is None for c in cutoffs):
+        return None
+    return min(cutoffs)
+
+
 async def process_reposter(
     reposter: ReposterConfig,
     config: AppConfig,
@@ -133,13 +161,9 @@ async def process_reposter(
         return
 
     with ReposterLock(reposter.name):
-        # 1. Собираем cutoff — минимальный из всех каналов репостера
-        cutoffs: list[str] = []
-        for rc in reposter.channels:
-            with StateManager(reposter.name, rc.channel) as state:
-                if state.last_processed_date:
-                    cutoffs.append(state.last_processed_date)
-        cutoff = min(cutoffs) if cutoffs else None
+        # 1. Общий cutoff репостера (ADR 0030, п. 11 + ADR 0036).
+        # Если у любого канала cutoff пуст — None (тянем с начала).
+        cutoff = compute_reposter_cutoff(reposter)
 
         # 2. Парсим один раз на репостер
         parser = WordPressParser(source)
