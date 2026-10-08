@@ -1,105 +1,88 @@
-# WP Reposter
+# Документация wp-reposter
 
-Асинхронный репостер из WordPress REST API в мессенджер MAX (и далее ВКонтакте).
+Этот каталог содержит всю документацию проекта:
 
-## Статус
+- **ADR** — Architecture Decision Records: почему приняты те или иные решения.
+- **ROADMAP.md** — обзор этапов развития.
+- **BACKLOG.md** — плоский список задач и технического долга.
 
-- **Этап 1:** ✅ Done (MVP: WP REST API → MAX, cutoff_date, state.json)
-- **Этап 2:** ✅ Done (фильтрация по категориям/тегам + unit-тесты)
-- **Этап 2b:** 🟡 В работе (автономный запуск: systemd, логирование,
-  отказоустойчивость)
-- **Этап 3:** ⚪ Запланирован (интеграция с ВКонтакте)
-- **Этап 4:** ⚪ Запланирован (веб-интерфейс, Docker, PostgreSQL)
-- **Этап 5:** ⚪ Запланирован (продвинутый UI, мониторинг)
+README про сам проект — в корне репозитория:
+[`../../README.md`](../../README.md).
 
-## Быстрый старт
+## С чего начать
 
-```bash
-# Установка зависимостей
-uv sync
+1. **[ROADMAP.md](ROADMAP.md)** — что сделано, что в работе, что запланировано.
+1. **[BACKLOG.md](BACKLOG.md)** — конкретные задачи и технический долг.
+1. **[0014-adr-index.md](0014-adr-index.md)** — индекс всех ADR по категориям.
+1. **[ADR 0030](0030-multichannel-and-reposter-model.md)** — модель «источник →
+   репостер → канал», основа всего.
 
-# Запуск
-uv run python -m src.main
+## Как читать ADR
 
-# Тесты
-uv run pytest
-```
+Формат: `NNNN-kebab-case-title.md`.
 
-## Документация
+Каждый ADR содержит:
 
-### Архитектурные решения (ADR)
+- **Status** — `Proposed`, `Accepted`, `Superseded`, `Planned`, `In progress`.
+- **Context** — почему возник вопрос.
+- **Decision** — что решили.
+- **Alternatives considered** — что рассматривали и почему отклонили.
+- **Consequences** — плюсы, минусы, что теперь нельзя.
+- **Tasks / Done criteria** — если ADR описывает этап работ.
+- **Not to touch** — что не менять при работе над этим ADR.
 
-Полный индекс — в [ADR 0014](doc/adr/0014-adr-index.md).
+### Статусы
 
-| ID | Название | Статус |
+- **Accepted** — решение действует.
+- **Superseded by NNNN** — заменён более новым ADR. Сохранён для истории.
+- **Planned** — этап будущего развития, детали зафиксированы.
+- **In progress** — работа идёт.
+- **Proposed** — предложение, ещё не принято.
+
+### Правила
+
+1. **ADR не редактируется молча.** Если решение изменилось — новый ADR со
+   ссылкой на старый, старый помечается `Superseded`.
+1. **Если задача меняет архитектуру — сначала ADR, потом код.**
+1. **Не редактируются:** `0001-project-dump-for-llm-context.md` — исторический
+   дамп для LLM.
+
+## Ключевые ADR
+
+Если хочется понять проект быстро, читать в таком порядке:
+
+| # | Тема | О чём |
 | -- | -- | -- |
-| 0001 | Project dump for LLM context | Accepted |
-| 0002 | uv как менеджер пакетов | Accepted |
-| 0003 | ruff для линтинга и форматирования | Accepted |
-| 0004 | WordPress REST API вместо RSS | Accepted |
-| 0005 | Асинхронная архитектура на asyncio | Accepted |
-| 0006 | pydantic-settings для секретов | Accepted |
-| 0007 | cutoff_date логика (защита от спама) | Accepted |
-| 0008 | maxapi как SDK для MAX | Accepted |
-| 0009 | JSON state хранение | Accepted |
-| 0010 | Лимит постов за один цикл (max_new_posts_per_run) | Accepted |
-| 0011 | disable_link_preview по умолчанию | Accepted |
-| 0012 | Единый источник Pydantic-моделей | Accepted |
-| 0013 | Синхронный парсер как временное исключение | Accepted |
-| 0014 | Индекс ADR | Accepted |
-| 0015 | План миграции кода под ADR | Accepted |
-| 0016 | Этап 2 — Фильтрация по рубрикам и тегам + unit-тесты | Accepted |
-| 0017 | Этап 3 — Интеграция с ВКонтакте | Planned |
-| 0018 | Этап 4 — Веб-интерфейс, Docker, PostgreSQL | Planned |
-| 0019 | Этап 5 — Продвинутый UI и мультиканальность | Planned |
-| 0020 | Структура модулей и зоны ответственности | Accepted |
-| 0021 | Поиск таксономий по полю `taxonomy` вместо индекса | Accepted |
-| 0022 | VK API для публикации постов | Planned |
-| 0023 | Серверная фильтрация постов по тегам (`include_tag_ids`) | Accepted |
-| 0024 | Мягкая обработка некорректных дат постов в парсере | Accepted |
-| 0025 | Подготовка к автономному запуску через systemd | In progress |
+| [0030](0030-multichannel-and-reposter-model.md) | Мультиканальность | Модель «источник → репостер → канал» |
+| [0020](0020-modules-structure-and-responsibilities.md) | Структура модулей | Кто за что отвечает |
+| [0028](0028-content-transform-and-post-composition.md) | Трансформации | Обработка HTML, композиция поста |
+| [0031](0031-wp-rest-query-optimization.md) | WP REST API | `_fields=`, медиа, `default_image` |
+| [0022](0022-adr-vk-api.md) | VK API | `vkbottle`, per-channel токены |
+| [0009](0009-adr-json-state-storage.md) | State | JSON-хранение состояния |
+| [0025](0025-autonomous-run-and-repo-cleanup.md) | Автономный запуск | systemd, логи, retry |
+| [0027](0027-pre-commit-hooks-for-quality-gates.md) | Quality gates | ruff, mdformat, pytest |
 
-### Этапы развития
+## Файлы
 
-- [ROADMAP.md](doc/adr/ROADMAP.md) — обзор этапов и принципов
-- [BACKLOG.md](doc/adr/BACKLOG.md) — плоский список задач
-- [0016-stage-2-filtering-and-tests.md](doc/adr/0016-stage-2-filtering-and-tests.md)
-  — детали Этапа 2
-- [0017-stage-3-vk-integration.md](doc/adr/0017-stage-3-vk-integration.md) —
-  детали Этапа 3
-- [0018-stage-4-web-docker-postgres.md](doc/adr/0018-stage-4-web-docker-postgres.md)
-  — детали Этапа 4
-- [0019-stage-5-advanced-ui.md](doc/adr/0019-stage-5-advanced-ui.md) — детали
-  Этапа 5
-- [0025-autonomous-run-systemd.md](doc/adr/0025-autonomous-run-systemd.md) —
-  детали Этапа 2b (автономный запуск)
+- `NNNN-*.md` — ADR.
+- `ROADMAP.md` — обзор этапов и принципов.
+- `BACKLOG.md` — задачи + технический долг + история изменений.
+- `README.md` — этот файл.
 
-## Структура проекта
+## Принципы ведения
 
-```
-src/
-├── main.py          # Точка входа, оркестрация циклов
-├── parser.py        # Извлечение и нормализация данных из WP API
-├── exporter.py      # Форматирование и отправка в каналы (MAX, VK)
-├── state.py         # Хранение состояния (processed posts, cutoff_date)
-├── models.py        # Pydantic-модели (конфигурация, секреты)
-└── config.py        # Загрузка конфигов из YAML и .env
-```
+1. **Один этап — один stage-файл.** Детали — в `0016-stage-2-*.md`,
+   `0022-adr-vk-api.md` (Этап 3b) и т.д.
+1. **Каждая задача имеет ID.** Формат: `S<этап>-<номер>`, например `S2-03`.
+1. **Каждая задача ссылается на ADR.**
+1. **Критерий завершения — измеримый.** Не «работает», а «`uv run pytest`
+   проходит».
+1. **Не усложнять раньше времени.** Триггеры для перехода на новую сложность
+   фиксируются в TD (BACKLOG) или в ROADMAP.
 
-**Эволюция структуры при мультиканальности (Этап 3):**
+## Связь с кодом
 
-```
-src/
-├── exporters/
-│   ├── max_exporter.py
-│   └── vk_exporter.py
-```
-
-См. ADR 0020 (раздел "Эволюция структуры").
-
-Зоны ответственности — в
-[ADR 0020](doc/adr/0020-modules-structure-and-responsibilities.md).
-
-## Лицензия
-
-MIT
+- **ADR** фиксируют **решения** (что и почему).
+- **ROADMAP / BACKLOG** фиксируют **работы** (что делать и когда).
+- Код ссылается на ADR через комментарии: `# ADR NNNN`.
+- Если задача противоречит ADR — либо задача отменяется, либо пишется новый ADR.
