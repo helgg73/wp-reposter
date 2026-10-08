@@ -22,7 +22,7 @@ from src.models import (
 
 
 class TestFieldSpec:
-    """Модель `FieldSpec`: имя поля и его тип."""
+    """Модель `FieldSpec`: имя поля, тип и ресурсный лимит."""
 
     def test_valid(self):
         spec = FieldSpec(name="excerpt.rendered", type="html")
@@ -36,6 +36,25 @@ class TestFieldSpec:
     def test_type_required(self):
         with pytest.raises(ValidationError):
             FieldSpec(name="excerpt.rendered")
+
+    def test_max_length_default_none(self):
+        """По умолчанию max_length не задан — без ограничений."""
+        spec = FieldSpec(name="link", type="plain")
+        assert spec.max_length is None
+
+    def test_max_length_positive(self):
+        spec = FieldSpec(name="content.rendered", type="html", max_length=5000)
+        assert spec.max_length == 5000
+
+    def test_max_length_zero_accepted_by_pydantic(self):
+        """Pydantic не валидирует 0 — это работа validation.py (ADR 0032)."""
+        spec = FieldSpec(name="link", type="plain", max_length=0)
+        assert spec.max_length == 0
+
+    def test_max_length_negative_accepted_by_pydantic(self):
+        """Pydantic не валидирует отрицательные — работа validation.py."""
+        spec = FieldSpec(name="link", type="plain", max_length=-1)
+        assert spec.max_length == -1
 
 
 # ---------------------------------------------------------------------------

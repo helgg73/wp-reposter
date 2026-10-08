@@ -144,3 +144,43 @@ def _truncate_by_paragraphs(text: str, max_length: int) -> str:
             result = candidate
 
     return result
+
+
+def truncate_raw(text: str, max_length: int) -> str:
+    """Обрезка сырого значения до трансформации (ADR 0032).
+
+    Ресурсная защита, не формат канала. Режет до `max_length`,
+    удаляет незавершённый HTML-тег в конце (если обрезка
+    попала в середину тега). Многоточие не добавляет —
+    симметрично `truncate` (ADR 0029).
+
+    Не путать с `truncate()` (ADR 0029): тот про формат
+    канала, работает после трансформации, поддерживает
+    режимы `words` и `first_paragraph`. Этот — до
+    трансформации, без режимов.
+
+    Применяется только к строкам. Вызывается из парсера,
+    когда `FieldSpec.max_length` задан и сырое значение
+    длиннее лимита. Если `max_length` больше или равен
+    длине — не вызывается вовсе (проверка в парсере).
+
+    Пример:
+
+        truncate_raw('<p>' + 'a' * 100, 10)
+        # '<p>aaaaaaa' — обрезка mid-content, тег <p> цел
+
+        truncate_raw('<p>aaa<a href="https://x.com">bbb</a></p>', 20)
+        # '<p>aaa' — хвост '<a href="https:' удалён (mid-tag)
+
+        truncate_raw('<p>' + 'a' * 5 + '</p>', 8)
+        # '<p>aaaaa' — обрезано mid-content, не mid-tag
+
+        truncate_raw('<p>' + 'a' * 5 + '</p>', 20)
+        # без изменений (но в парсере до этого не дойдёт)
+    """
+    cut = text[:max_length]
+    # Убираем незавершённый HTML-тег в конце: '<' без '>'.
+    # Симметрично `truncate`: результат может быть короче
+    # лимита, зато без артефактов.
+    cut = re.sub(r"<[^>]*$", "", cut)
+    return cut

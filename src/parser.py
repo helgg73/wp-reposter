@@ -4,7 +4,7 @@ from pathlib import Path
 
 import httpx
 
-from .content_transform import get_transformer
+from .content_transform import get_transformer, truncate_raw
 from .models import FilterConfig, WPRestSourceConfig
 
 logger = logging.getLogger(__name__)
@@ -224,6 +224,11 @@ class WordPressParser:
         `check_sources` в main.py ловит ValueError на уровне
         источника, сервис не падает.
 
+        Если у поля задан `FieldSpec.max_length` и сырое
+        значение — строка длиннее лимита, обрезает до
+        трансформации (`truncate_raw`, ADR 0032). К не-строкам
+        лимит не применяется.
+
         `_image_url` здесь — None. Реальная картинка
         подтягивается позже в `_attach_images` (ADR 0031).
         """
@@ -254,9 +259,18 @@ class WordPressParser:
                     f"конфигурация полей неверна."
                 )
             raw_value = self._get_by_path(post, field.name)
+
+            # Ресурсный лимит на сырое значение (ADR 0032).
+            # Только для строк: int/dict/list/None пропускаем.
+            if (
+                field.max_length is not None
+                and isinstance(raw_value, str)
+                and len(raw_value) > field.max_length
+            ):
+                raw_value = truncate_raw(raw_value, field.max_length)
+
             transformer = get_transformer(field.type)
             formatted[field.name] = transformer(raw_value)
-
         return formatted
 
     @staticmethod

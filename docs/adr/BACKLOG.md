@@ -19,7 +19,7 @@
 | 2c | [0028-content-transform-and-post-composition.md](0028-content-transform-and-post-composition.md) | ✅ Done |
 | 2d | [0029-truncate-by-max-length.md](0029-truncate-by-max-length.md) | ✅ Done |
 | 2e | — (расширение ADR 0029) | ✅ Done |
-| 2g | [0031-wp-rest-query-optimization.md](0031-wp-rest-query-optimization.md) | 🟡 In Progress |
+| 2g | [0031-wp-rest-query-optimization.md](0031-wp-rest-query-optimization.md) | ✅ Done |
 | 3a | [0030-multichannel-and-reposter-model.md](0030-multichannel-and-reposter-model.md) | ✅ Done |
 | 3b | [0022-adr-vk-api.md](0022-adr-vk-api.md) | ✅ Done |
 | 4 | [0018-stage-4-web-docker-postgres.md](0018-stage-4-web-docker-postgres.md) | ⚪ Planned |
@@ -39,6 +39,7 @@
 | 2e | S2e-01 | 0029 | ✅ Done |
 | 3a | S3a-01…S3a-15 | 0030 | ✅ Done |
 | 3b | S3b-01…S3b-06 | 0022 | ✅ Done |
+| 2g | S2g-01a…S2g-08 | 0031, 0032 | ✅ Done |
 
 Детали — в соответствующих stage-файлах и в истории изменений ниже.
 
@@ -50,20 +51,6 @@
 > `## Этап N (Done)`. Учёт — в двух местах: сводная таблица «Завершённые этапы»
 > (выше) и stage-файл этапа. Значимое «отложено» — в TD или в соответствующем
 > Planned-этапе. Отдельный Done-раздел дублирует эту информацию и устаревает.
-
-## Этап 2g (🟡 In Progress) — «Оптимизация запроса к WP REST API»
-
-| # | ID | Задача | ADR | Статус |
-| -- | -- | -- | -- | -- |
-| 1 | S2g-01a | `?_fields=` + отказ от `_embed` + серверная фильтрация + фикс `transform_html` (блочные теги → `\n\n`) | 0031 | ✅ Done |
-| 2 | S2g-01b | Медиа отдельным запросом + `default_image` + `_extract_image` async | 0031 | ✅ Done |
-| 3 | S2g-01c | `settings.example.yaml`, `main.py` (проверка файла), интеграционные тесты | 0031 | ✅ Done |
-| 4 | S2g-02 | `max_source_field_length` — обрезка больших полей до трансформера | 0031 | Todo |
-
-**Логика порядка:**
-
-- **S2g-01a, S2g-01b, S2g-01c** — ✅ выполнены.
-- **S2g-02** — независимо от медиа: обрезка больших полей до трансформера.
 
 ## Этап 4 (Planned) — [0018](0018-stage-4-web-docker-postgres.md)
 
@@ -312,3 +299,4 @@
 | 2026-10-07 | S2g-01 раздроблен на S2g-01a (парсер), S2g-01b (медиа), S2g-01c (конфиг + интеграция). Порядок важен: a → b → c. |
 | 2026-10-07 | S2g-01a: фикс `transform_html` — блочные теги (`<p>`, `<div>`) → `\n\n`. Восстанавливает `first_paragraph` для `content.rendered`. Отменённый S2f-01 переосмыслен (не `\n+` → `\n\n`, а блочные теги). ADR 0028 и 0029 обновлены. |
 | 2026-10-07 | S2g-01a, S2g-01b, S2g-01c закрыты. `?_fields=`, серверная фильтрация, фикс `transform_html`, медиа отдельным запросом, `default_image`. Осталась S2g-02 (`max_source_field_length`). |
+| 2026-10-07 | Добавлен ADR 0032 (`FieldSpec.max_length`, `truncate_raw`). S2g-02 закрыт. Задачи S2g-03…S2g-08 выполнены. Этап 2g → ✅ Done. |

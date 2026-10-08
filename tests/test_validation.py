@@ -220,6 +220,55 @@ class TestValidateLocalSources:
         errors = validate_local(config)
         assert any("markdown" in e for e in errors)
 
+    def test_field_max_length_zero_is_error(self):
+        """max_length = 0 запрещён (ADR 0032)."""
+        source = _make_source(
+            fields=[
+                FieldSpec(name="title.rendered", type="plain"),
+                FieldSpec(name="excerpt.rendered", type="html"),
+                FieldSpec(name="link", type="plain", max_length=0),
+            ],
+        )
+        config = _make_config(sources=[source])
+        errors = validate_local(config)
+        assert any("max_length" in e and "положительным" in e for e in errors)
+
+    def test_field_max_length_negative_is_error(self):
+        source = _make_source(
+            fields=[
+                FieldSpec(name="title.rendered", type="plain"),
+                FieldSpec(name="excerpt.rendered", type="html"),
+                FieldSpec(name="link", type="plain", max_length=-1),
+            ],
+        )
+        config = _make_config(sources=[source])
+        errors = validate_local(config)
+        assert any("max_length" in e for e in errors)
+
+    def test_field_max_length_none_ok(self):
+        """max_length не задан — без ошибок (ADR 0032)."""
+        source = _make_source(
+            fields=[
+                FieldSpec(name="title.rendered", type="plain"),
+                FieldSpec(name="excerpt.rendered", type="html", max_length=None),
+                FieldSpec(name="link", type="plain"),
+            ],
+        )
+        config = _make_config(sources=[source])
+        assert validate_local(config) == []
+
+    def test_field_max_length_positive_ok(self):
+        """max_length положительный — без ошибок (ADR 0032)."""
+        source = _make_source(
+            fields=[
+                FieldSpec(name="title.rendered", type="plain"),
+                FieldSpec(name="excerpt.rendered", type="html", max_length=5000),
+                FieldSpec(name="link", type="plain"),
+            ],
+        )
+        config = _make_config(sources=[source])
+        assert validate_local(config) == []
+
 
 # ---------------------------------------------------------------------------
 # validate_local — репостеры

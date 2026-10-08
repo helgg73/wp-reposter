@@ -68,12 +68,14 @@ def validate_local(config: AppConfig) -> list[str]:
     - списки `sources`, `channels`, `reposters` непустые;
     - у каждого источника непустой `fields`;
     - для всех типов из `fields` есть обработчики в `content_transform`;
+    - `FieldSpec.max_length` (если задан) положительный (ADR 0032);
     - у каждого репостера `source` существует в `sources`;
     - у каждого репостера непустой `channels`;
     - для каждого канала репостера: `channel` существует в `channels`,
       `template` непустой, все поля блоков входят в `fields`
       **источника этого репостера**, `max_length >= 0`.
     """
+
     errors: list[str] = []
 
     # 1. Списки непустые
@@ -97,6 +99,17 @@ def validate_local(config: AppConfig) -> list[str]:
                 get_transformer(field.type)
             except ValueError as e:
                 errors.append(f"Источник '{source.name}', поле '{field.name}': {e}")
+
+            # max_length в FieldSpec: None — без ограничений,
+            # положительное число — лимит. 0 и отрицательные
+            # запрещены (ADR 0032).
+            if field.max_length is not None and field.max_length <= 0:
+                errors.append(
+                    f"Источник '{source.name}', поле '{field.name}': "
+                    f"max_length должен быть положительным или "
+                    f"отсутствовать (None). Получено: {field.max_length}. "
+                    f"Для «без ограничений» используйте отсутствие поля."
+                )
 
     # 3. Проверки репостеров
     for reposter in config.reposters:

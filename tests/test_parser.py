@@ -1,7 +1,8 @@
 import httpx
 import pytest
 
-from src.models import FilterConfig
+from src.content_transform import _transformers, register_transformer
+from src.models import FieldSpec, FilterConfig, WPRestSourceConfig
 from src.parser import WordPressParser
 
 
@@ -454,4 +455,146 @@ class TestAttachImages:
 
         assert posts[0]["_image_url"] is None
 
+        await parser.close()
+
+
+@pytest.mark.asyncio
+class TestFieldMaxLength:
+    """Ресурсный лимит `FieldSpec.max_length` (ADR 0032).
+
+    Обрезка сырого значения до трансформации, только для строк.
+    """
+
+    def _make_source(self, fields: list[FieldSpec]) -> WPRestSourceConfig:
+        return WPRestSourceConfig(
+            name="Test Source",
+            base_url="https://example.com",
+            api_path="/wp-json/wp/v2",
+            max_pages=1,
+            per_page=10,
+            fields=fields,
+        )
+
+    def _make_post(self, **extra) -> dict:
+        post = {
+            "guid": "test-guid",
+            "link": "https://example.com/post",
+            "date": "2026-09-16T10:00:00",
+            "featured_media": 0,
+        }
+        post.update(extra)
+        return post
+
+    async def test_string_longer_than_limit_truncated(self):
+        """Строка длиннее лимита — обрезана до трансформации."""
+        source = self._make_source(
+            fields=[FieldSpec(name="custom_field", type="plain", max_length=10)]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(custom_field="a" * 100)
+        result = parser._format_post(post)
+        assert result is not None
+        assert result["custom_field"] == "a" * 10
+        await parser.close()
+
+    async def test_string_shorter_than_limit_unchanged(self):
+        """Строка короче лимита — без изменений."""
+        source = self._make_source(
+            fields=[FieldSpec(name="custom_field", type="plain", max_length=100)]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(custom_field="короткий")
+        result = parser._format_post(post)
+        assert result is not None
+        assert result["custom_field"] == "короткий"
+        await parser.close()
+
+    async def test_no_max_length_unchanged(self):
+        """max_length = None — без обрезки, даже если строка длинная."""
+        source = self._make_source(fields=[FieldSpec(name="custom_field", type="plain")])
+        parser = WordPressParser(source)
+        post = self._make_post(custom_field="a" * 1000)
+        result = parser._format_post(post)
+        assert result is not None
+        assert result["custom_field"] == "a" * 1000
+        await parser.close()
+
+    async def test_non_string_value_ignored(self):
+        """max_length на не-строковом поле — молча игнорируется."""
+        source = self._make_source(
+            fields=[FieldSpec(name="custom_int", type="plain", max_length=5)]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(custom_int=123456789)
+        result = parser._format_post(post)
+        assert result is not None
+        # transform_plain возвращает как есть — int остаётся int
+        assert result["custom_int"] == 123456789
+        await parser.close()
+
+    async def test_dict_value_ignored(self):
+        """max_length на dict-поле — молча игнорируется."""
+        source = self._make_source(
+            fields=[FieldSpec(name="custom_dict", type="plain", max_length=5)]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(custom_dict={"a": 1, "b": 2})
+        result = parser._format_post(post)
+        assert result is not None
+        assert result["custom_dict"] == {"a": 1, "b": 2}
+        await parser.close()
+
+    async def test_none_value_ignored(self):
+        """max_length на None — молча игнорируется (transform_plain не упадёт)."""
+        source = self._make_source(
+            fields=[FieldSpec(name="custom_null", type="plain", max_length=5)]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(custom_null=None)
+        result = parser._format_post(post)
+        assert result is not None
+        assert result["custom_null"] is None
+        await parser.close()
+
+    async def test_truncation_before_transformer(self):
+        """Обрезка применяется ДО трансформации — трансформер получает уже обрезанное."""
+        received: list[str] = []
+
+        @register_transformer("test_recorder")
+        def _record(text: str) -> str:
+            received.append(text)
+            return text
+
+        try:
+            source = self._make_source(
+                fields=[FieldSpec(name="custom", type="test_recorder", max_length=5)]
+            )
+            parser = WordPressParser(source)
+            post = self._make_post(custom="abcdefghij")
+            parser._format_post(post)
+
+            assert received == ["abcde"]
+        finally:
+            _transformers.pop("test_recorder", None)
+            await parser.close()
+
+    async def test_html_partial_tag_stripped_before_transform(self):
+        """Обрезка mid-tag + transform_html не оставляет артефактов."""
+        source = self._make_source(
+            fields=[
+                FieldSpec(name="content.rendered", type="html", max_length=20),
+            ]
+        )
+        parser = WordPressParser(source)
+        post = self._make_post(
+            **{"content": {"rendered": '<p>aaa<a href="https://x.com">bbb</a></p>'}}
+        )
+        # Поле "content.rendered" — _get_by_path вернёт
+        # post["content"]["rendered"]
+        result = parser._format_post(post)
+        assert result is not None
+        # '<p>aaa<a href="https://x.com">bbb</a></p>'[:20] = '<p>aaa<a href="https:'
+        # после truncate_raw: '<p>aaa'
+        # после transform_html: 'aaa'
+        assert result["content.rendered"] == "aaa"
         await parser.close()

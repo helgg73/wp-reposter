@@ -15,11 +15,24 @@ class FieldSpec(BaseModel):
 
     `name` — путь через точку для вложенных полей
     (например, "excerpt.rendered").
+
     `type` — тип для выбора обработчика в content_transform.
+
+    `max_length` — ресурсный лимит на **сырое** значение поля
+    (до трансформации). Применяется только к строкам: для
+    не-строковых значений (int, dict, list, None) молча
+    игнорируется. `None` — без ограничений. `0` и
+    отрицательные — ошибка валидации (см. validation.py).
+
+    Не путать с `PostBlock.max_length` (ADR 0029):
+    `FieldSpec.max_length` — защита ресурсов до трансформации,
+    `PostBlock.max_length` — формат канала после трансформации.
+    См. ADR 0032.
     """
 
     name: str
     type: str
+    max_length: int | None = None
 
 
 class PostBlock(BaseModel):

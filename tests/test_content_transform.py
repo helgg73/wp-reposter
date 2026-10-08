@@ -9,6 +9,7 @@ from src.content_transform import (
     transform_html,
     transform_plain,
     truncate,
+    truncate_raw,
 )
 
 
@@ -487,3 +488,84 @@ class TestTransformHtmlPlusFirstParagraph:
         assert "[…]" not in cleaned
         result = truncate(cleaned, 0, mode="first_paragraph")
         assert result == "Лид."
+
+
+class TestTruncateRaw:
+    """Тесты на `truncate_raw` (ADR 0032).
+
+    Обрезка сырого значения до трансформации: только по символам,
+    без режимов, с санитизацией partial-тега.
+    """
+
+    def test_shorter_than_limit_unchanged(self):
+        """Строка короче лимита — без изменений.
+
+        В парсере до `truncate_raw` вообще не дойдёт (проверка
+        `len(raw) > max_length` снаружи), но функция должна
+        вести себя корректно и сама по себе.
+        """
+        assert truncate_raw("короткий текст", 100) == "короткий текст"
+
+    def test_exactly_at_limit_unchanged(self):
+        text = "ровно двадцать симв"  # 19 символов
+        assert truncate_raw(text, 19) == text
+
+    def test_truncated_by_symbols(self):
+        """Обрезка по символам, не по словам (в отличие от `truncate`)."""
+        text = "Денис Паслер подписал распоряжение"
+        result = truncate_raw(text, 20)
+        # 20 символов: "Денис Паслер подписа" — обрыв mid-word,
+        # это нормально для ресурсного лимита (в отличие от `truncate`,
+        # который режет по словам, ADR 0029).
+        assert result == "Денис Паслер подписа"
+        assert len(result) == 20
+
+    def test_no_ellipsis_added(self):
+        """Многоточие не добавляется — симметрично `truncate` (ADR 0029)."""
+        text = "Длинный текст без ограничений"
+        result = truncate_raw(text, 10)
+        assert "…" not in result
+        assert "..." not in result
+
+    def test_partial_tag_at_end_removed(self):
+        """Обрезка попала в середину тега — partial-тег удаляется."""
+        text = '<p>Очень длинный текст <a href="https://example.com">ссылка</a></p>'
+        result = truncate_raw(text, 30)
+        # Хвост '<a href="https://exampl' без '>' должен быть удалён
+        assert "<" not in result or result.count("<") == result.count(">")
+        assert not result.endswith("<")
+
+    def test_partial_tag_at_very_end(self):
+        """Обрезка ровно в '<' — незавершённый тег удаляется."""
+        text = "abcdefgh<"  # обрезка на 9
+        result = truncate_raw(text, 9)
+        assert result == "abcdefgh"
+
+    def test_complete_tag_at_end_preserved(self):
+        """Обрезка после '>' — тег остаётся."""
+        text = "<p>текст</p>дальше"
+        result = truncate_raw(text, 12)  # '<p>текст</p>' = 12 символов
+        assert result == "<p>текст</p>"
+
+    def test_mid_content_truncation_no_tag(self):
+        """Обычная строка без тегов — простая обрезка."""
+        text = "a" * 100
+        result = truncate_raw(text, 10)
+        assert result == "a" * 10
+
+    def test_empty_string(self):
+        assert truncate_raw("", 10) == ""
+
+    def test_real_content_rendered(self):
+        """Реальный сценарий: длинный content.rendered с тегами."""
+        text = "<p>" + "a" * 100 + "</p><p>" + "b" * 100 + "</p>"
+        result = truncate_raw(text, 50)
+        # Обрезка на 50: попадает в 'a'*100, тегов в начале нет
+        assert result == "<p>" + "a" * 47
+
+    def test_real_content_rendered_mid_tag(self):
+        """Обрезка попала в 'a href'."""
+        text = '<p>aaa<a href="https://example.com/very-long-url">bbb</a></p>'
+        result = truncate_raw(text, 25)
+        # '<p>aaa<a href="https:' → хвост '<a href="https:' удаляется
+        assert result == "<p>aaa"
